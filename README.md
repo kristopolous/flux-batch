@@ -31,8 +31,6 @@ flux-batch -in <glob> -out <dir> -prompt <prompt>
 | `--device` | `cuda` | Torch device |
 | `--count` | `1` | Number of images to make |
 | `--steps` | `4` | Inference steps |
-| `--seed` | random | Seed for reproducibility |
-| `--no-offload` | (offload on) | Keep model on GPU |
 
 **Notes:** 
 
