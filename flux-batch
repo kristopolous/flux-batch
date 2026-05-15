@@ -61,6 +61,8 @@ def main():
         args.gguf,
         quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
         torch_dtype=torch.bfloat16,
+        config=BASE_MODEL,
+        subfolder="transformer"
     )
 
     pipe = Flux2KleinPipeline.from_pretrained(
@@ -69,7 +71,6 @@ def main():
         torch_dtype=torch.bfloat16,
     )
     pipe.enable_model_cpu_offload()
-    pipe.to(args.device)
 
     t1 = time.time()
     print(f"Model ready in {t1 - t0:.1f}s", file=sys.stderr)
