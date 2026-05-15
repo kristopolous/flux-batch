@@ -28,10 +28,9 @@ flux-batch -in <glob> -out <dir> -prompt <prompt>
 |------|---------|-------------|
 | `-in` | — | Glob pattern for input images (e.g. `"*.jpg"`) |
 | `-out` | — | Output directory |
-| `--gguf` | *(Q4_K_M from HF)* | GGUF file path or URL |
 | `--device` | `cuda` | Torch device |
+| `--count` | `1` | Number of images to make |
 | `--steps` | `4` | Inference steps |
-| `--guidance` | `3.0` | Guidance scale |
 | `--seed` | random | Seed for reproducibility |
 | `--no-offload` | (offload on) | Keep model on GPU |
 
