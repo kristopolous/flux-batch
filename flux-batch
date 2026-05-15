@@ -83,8 +83,8 @@ def main():
                 else:
                   outpath = out_dir / f"{stem}.png"
 
-                if args.nc and os.path.exists(output):
-                  print(f"Skipping {output}")
+                if args.nc and os.path.exists(outpath):
+                  print(f"Skipping {outpath}")
                   continue
 
                 input_image = load_image(inpath)
