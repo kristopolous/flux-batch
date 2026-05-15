@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""Batch-process images through FLUX.2 klein with a single prompt."""
+
+import argparse
+import sys
+import os
+from pathlib import Path
+from glob import glob
+import time
+
+import torch
+from diffusers import Flux2KleinPipeline
+from diffusers.utils import load_image
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Batch image editing with FLUX.2 klein",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Examples:\n"
+            "  flux-batch -in '*.jpg' -out new/ 'repaint this as a disney cartoon'\n"
+            "  flux-batch -in 'photos/*.png' -out edited/ --model other/model 'make it night'\n"
+            "  flux-batch -in '*.jpg' -out new/ --device cpu 'add a rainbow'\n"
+        ),
+    )
+    parser.add_argument("prompt", help="Prompt applied to every image")
+    parser.add_argument("-in", "--input-glob", required=True,
+                        help="Glob pattern for input images (e.g. '*.jpg')")
+    parser.add_argument("-out", "--output-dir", required=True,
+                        help="Directory to write output images")
+    parser.add_argument("--model", default="black-forest-labs/FLUX.2-klein-9B",
+                        help="HF model ID or path (default: black-forest-labs/FLUX.2-klein-9B)")
+    parser.add_argument("--device", default="cuda",
+                        help="Torch device (default: cuda)")
+    parser.add_argument("--dtype", default="bfloat16",
+                        choices=["bfloat16", "float16", "float32"],
+                        help="Model dtype (default: bfloat16)")
+    parser.add_argument("--steps", type=int, default=4,
+                        help="Number of inference steps (default: 4)")
+    parser.add_argument("--guidance", type=float, default=3.0,
+                        help="Guidance scale (default: 3.0)")
+    parser.add_argument("--offload", action="store_true", default=True,
+                        help="Enable model CPU offload (default: True)")
+    parser.add_argument("--no-offload", action="store_false", dest="offload")
+    parser.add_argument("--seed", type=int, default=None,
+                        help="Random seed for reproducibility")
+
+    args = parser.parse_args()
+
+    out_dir = Path(args.output_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    input_files = sorted(glob(args.input_glob, recursive=True))
+    if not input_files:
+        print(f"Error: no files matched '{args.input_glob}'", file=sys.stderr)
+        sys.exit(1)
+
+    dtype_map = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
+    torch_dtype = dtype_map[args.dtype]
+
+    print(f"Loading model {args.model} ...", file=sys.stderr)
+    t0 = time.time()
+    pipe = Flux2KleinPipeline.from_pretrained(args.model, torch_dtype=torch_dtype)
+    pipe.to(args.device)
+
+    if args.offload:
+        pipe.enable_model_cpu_offload()
+
+    t1 = time.time()
+    print(f"Model loaded in {t1 - t0:.1f}s", file=sys.stderr)
+
+    total = len(input_files)
+    for i, inpath in enumerate(input_files, 1):
+        print(f"[{i}/{total}] {inpath} ...", file=sys.stderr, end=" ", flush=True)
+        t_start = time.time()
+
+        input_image = load_image(inpath)
+        w, h = input_image.size
+        gen_kwargs = {
+            "prompt": args.prompt,
+            "image": input_image,
+            "height": h,
+            "width": w,
+            "guidance_scale": args.guidance,
+            "num_inference_steps": args.steps,
+        }
+        if args.seed is not None:
+            gen_kwargs["generator"] = torch.Generator(device=args.device).manual_seed(args.seed)
+
+        result = pipe(**gen_kwargs)
+        image = result.images[0]
+
+        stem = Path(inpath).stem
+        outpath = out_dir / f"{stem}.png"
+        image.save(outpath)
+
+        elapsed = time.time() - t_start
+        print(f"{elapsed:.1f}s -> {outpath}", file=sys.stderr)
+
+    print(f"Done. {total} images saved to {out_dir}", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()
