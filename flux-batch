@@ -58,6 +58,11 @@ def main():
     dtype_map = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
     torch_dtype = dtype_map[args.dtype]
 
+    if args.device == "cuda" and not torch.cuda.is_available():
+        print("Error: --device cuda but no CUDA detected", file=sys.stderr)
+        sys.exit(1)
+    print(f"using {args.device}", file=sys.stderr)
+
     print(f"Downloading/loading {args.model} ...", file=sys.stderr)
     t0 = time.time()
     pipe = Flux2KleinPipeline.from_pretrained(args.model, torch_dtype=torch_dtype)
