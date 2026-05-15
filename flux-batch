@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Batch-process images through FLUX.2 klein with a single prompt."""
+"""Batch-process images through FLUX.2 klein (GGUF Q4) with a single prompt."""
 
 import argparse
 import sys
@@ -8,15 +8,16 @@ from pathlib import Path
 from glob import glob
 import time
 
+GGUF_URL = "https://huggingface.co/unsloth/FLUX.2-klein-9B-GGUF/resolve/main/flux-2-klein-9b-Q4_K_M.gguf"
+BASE_MODEL = "black-forest-labs/FLUX.2-klein-9B"
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Batch image editing with FLUX.2 klein",
+        description="Batch image editing with FLUX.2 klein Q4 GGUF",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
             "  flux-batch -in '*.jpg' -out new/ 'repaint this as a disney cartoon'\n"
-            "  flux-batch -in 'photos/*.png' -out edited/ --model other/model 'make it night'\n"
-            "  flux-batch -in '*.jpg' -out new/ --device cpu 'add a rainbow'\n"
         ),
     )
     parser.add_argument("prompt", help="Prompt applied to every image")
@@ -24,13 +25,10 @@ def main():
                         help="Glob pattern for input images (e.g. '*.jpg')")
     parser.add_argument("-out", "--output-dir", required=True,
                         help="Directory to write output images")
-    parser.add_argument("--model", default="black-forest-labs/FLUX.2-klein-9B",
-                        help="HF model ID or path (default: black-forest-labs/FLUX.2-klein-9B)")
+    parser.add_argument("--gguf", default=GGUF_URL,
+                        help=f"GGUF file path or URL (default: Q4_K_M from HuggingFace)")
     parser.add_argument("--device", default="cuda",
                         help="Torch device (default: cuda)")
-    parser.add_argument("--dtype", default="bfloat16",
-                        choices=["bfloat16", "float16", "float32"],
-                        help="Model dtype (default: bfloat16)")
     parser.add_argument("--steps", type=int, default=4,
                         help="Number of inference steps (default: 4)")
     parser.add_argument("--guidance", type=float, default=3.0,
@@ -44,7 +42,7 @@ def main():
     args = parser.parse_args()
 
     import torch
-    from diffusers import Flux2KleinPipeline
+    from diffusers import Flux2KleinPipeline, Flux2Transformer2DModel, GGUFQuantizationConfig
     from diffusers.utils import load_image
 
     out_dir = Path(args.output_dir)
@@ -55,17 +53,23 @@ def main():
         print(f"Error: no files matched '{args.input_glob}'", file=sys.stderr)
         sys.exit(1)
 
-    dtype_map = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
-    torch_dtype = dtype_map[args.dtype]
-
     if args.device == "cuda" and not torch.cuda.is_available():
         print("Error: --device cuda but no CUDA detected", file=sys.stderr)
         sys.exit(1)
     print(f"using {args.device}", file=sys.stderr)
 
-    print(f"Downloading/loading {args.model} ...", file=sys.stderr)
+    print(f"Loading GGUF {args.gguf} ...", file=sys.stderr)
     t0 = time.time()
-    pipe = Flux2KleinPipeline.from_pretrained(args.model, torch_dtype=torch_dtype)
+    transformer = Flux2Transformer2DModel.from_single_file(
+        args.gguf,
+        quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
+        torch_dtype=torch.bfloat16,
+    )
+    pipe = Flux2KleinPipeline.from_pretrained(
+        BASE_MODEL,
+        transformer=transformer,
+        torch_dtype=torch.bfloat16,
+    )
     pipe.to(args.device)
 
     if args.offload:

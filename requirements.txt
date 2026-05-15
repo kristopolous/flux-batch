@@ -1,4 +1,5 @@
 torch>=2.5.0
 diffusers>=0.33.0
+gguf
 transformers
 accelerate
