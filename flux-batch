@@ -8,11 +8,6 @@ from pathlib import Path
 from glob import glob
 import time
 
-import torch
-from diffusers import Flux2KleinPipeline
-from diffusers.utils import load_image
-
-
 def main():
     parser = argparse.ArgumentParser(
         description="Batch image editing with FLUX.2 klein",
@@ -48,6 +43,10 @@ def main():
 
     args = parser.parse_args()
 
+    import torch
+    from diffusers import Flux2KleinPipeline
+    from diffusers.utils import load_image
+
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -59,7 +58,10 @@ def main():
     dtype_map = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
     torch_dtype = dtype_map[args.dtype]
 
-    print(f"Loading model {args.model} ...", file=sys.stderr)
+    from huggingface_hub import enable_progress_bars
+    enable_progress_bars()
+
+    print(f"Downloading/loading {args.model} ...", file=sys.stderr)
     t0 = time.time()
     pipe = Flux2KleinPipeline.from_pretrained(args.model, torch_dtype=torch_dtype)
     pipe.to(args.device)
@@ -68,7 +70,7 @@ def main():
         pipe.enable_model_cpu_offload()
 
     t1 = time.time()
-    print(f"Model loaded in {t1 - t0:.1f}s", file=sys.stderr)
+    print(f"Model ready in {t1 - t0:.1f}s", file=sys.stderr)
 
     total = len(input_files)
     for i, inpath in enumerate(input_files, 1):
