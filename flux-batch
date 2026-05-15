@@ -33,9 +33,6 @@ def main():
                         help="Number of inference steps (default: 4)")
     parser.add_argument("--guidance", type=float, default=3.0,
                         help="Guidance scale (default: 3.0)")
-    parser.add_argument("--offload", action="store_true", default=True,
-                        help="Enable model CPU offload (default: True)")
-    parser.add_argument("--no-offload", action="store_false", dest="offload")
     parser.add_argument("--seed", type=int, default=None,
                         help="Random seed for reproducibility")
 
@@ -71,10 +68,8 @@ def main():
         transformer=transformer,
         torch_dtype=torch.bfloat16,
     )
+    pipe.enable_model_cpu_offload()
     pipe.to(args.device)
-
-    if args.offload:
-        pipe.enable_model_cpu_offload()
 
     t1 = time.time()
     print(f"Model ready in {t1 - t0:.1f}s", file=sys.stderr)
