@@ -27,7 +27,6 @@ def main():
     parser.add_argument("--device", default="cuda", help="Torch device (default: cuda)")
     parser.add_argument("--count", default=1, type=int, help="Number of images to make")
     parser.add_argument("--steps", type=int, default=4, help="Number of inference steps (default: 4)")
-    parser.add_argument("--seed", type=int, default=None, help="Random seed for reproducibility")
 
     args = parser.parse_args()
 
@@ -94,9 +93,6 @@ def main():
             }
 
             oldprompt=prompt
-
-            if args.seed is not None:
-                gen_kwargs["generator"] = torch.Generator(device=args.device).manual_seed(args.seed)
 
             result = pipe(**gen_kwargs)
             image = result.images[0]
