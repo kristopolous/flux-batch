@@ -20,13 +20,14 @@ def main():
             "  flux-batch -in '*.jpg' -out new/ 'repaint this as a disney cartoon'\n"
         ),
     )
-    parser.add_argument("-p" , "--prompt", help="Prompt from a file applied to every image")
-    parser.add_argument("-in", "--input-glob", required=True, help="Glob pattern for input images (e.g. '*.jpg')")
+    parser.add_argument("-p" , "--prompt", required=True, help="Prompt from a file applied to every image")
     parser.add_argument("-out", "--output-dir", required=True, help="Directory to write output images")
+    parser.add_argument("-in", "--input-glob", help="Glob pattern for input images (e.g. '*.jpg')")
     parser.add_argument("--gguf", default=GGUF_URL, help=f"GGUF file path or URL (default: Q4_K_M from HuggingFace)")
     parser.add_argument("--device", default="cuda", help="Torch device (default: cuda)")
     parser.add_argument("--count", default=1, type=int, help="Number of images to make")
     parser.add_argument("--steps", type=int, default=4, help="Number of inference steps (default: 4)")
+    parser.add_argument("--ref", action="append", dest="refs", metavar="IMAGE", help="Reference image(s), can be specified multiple times")
 
     args = parser.parse_args()
 
@@ -36,11 +37,6 @@ def main():
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-
-    input_files = sorted(glob(args.input_glob, recursive=True))
-    if not input_files:
-        print(f"Error: no files matched '{args.input_glob}'", file=sys.stderr)
-        sys.exit(1)
 
     if args.device == "cuda" and not torch.cuda.is_available():
         print("Error: --device cuda but no CUDA detected", file=sys.stderr)
@@ -67,15 +63,23 @@ def main():
     t1 = time.time()
     print(f"Model ready in {t1 - t0:.1f}s", file=sys.stderr)
 
-    total = len(input_files)
+    if args.input_glob:
+        input_files = sorted(glob(args.input_glob))
+        total = len(input_files)
+    else:
+        input_files = [None]
+
     oldprompt = None
+    refs = [load_image(r) for r in args.refs] if args.refs else []
     for i, inpath in enumerate(input_files, 1):
         for c in range(args.count):
-            print(f"[{i}/{total}] {inpath} ...", file=sys.stderr, end=" ", flush=True)
             t_start = time.time()
 
-            input_image = load_image(inpath)
-            w, h = input_image.size
+            if inpath:
+                input_image = load_image(inpath)
+                w, h = input_image.size
+            else:
+                w, h = 1024, 1024
 
             with open(args.prompt) as f:
                 prompt = f.readlines()[0]
@@ -85,12 +89,13 @@ def main():
 
             gen_kwargs = {
                 "prompt": prompt,
-                "image": input_image,
-                "height": h>>4<<4,
-                "width": w>>4<<4,
-                #"guidance_scale": args.guidance,
+                "height": h & ~0xf,
+                "width": w & ~0xf,
                 "num_inference_steps": args.steps,
             }
+
+            if args.input_glob:
+                gen_kwargs['image'] = [input_image] + refs if refs else input_image
 
             oldprompt=prompt
 
