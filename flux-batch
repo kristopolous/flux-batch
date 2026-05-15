@@ -20,7 +20,7 @@ def main():
             "  flux-batch -in '*.jpg' -out new/ 'repaint this as a disney cartoon'\n"
         ),
     )
-    parser.add_argument("prompt", help="Prompt applied to every image")
+    parser.add_argument("-p" , "--prompt", help="Prompt from a file applied to every image")
     parser.add_argument("-in", "--input-glob", required=True,
                         help="Glob pattern for input images (e.g. '*.jpg')")
     parser.add_argument("-out", "--output-dir", required=True,
@@ -76,20 +76,31 @@ def main():
     print(f"Model ready in {t1 - t0:.1f}s", file=sys.stderr)
 
     total = len(input_files)
+    oldprompt = None
     for i, inpath in enumerate(input_files, 1):
         print(f"[{i}/{total}] {inpath} ...", file=sys.stderr, end=" ", flush=True)
         t_start = time.time()
 
         input_image = load_image(inpath)
         w, h = input_image.size
+
+        with open(args.prompt) as f:
+            prompt = f.readlines()[0]
+
+        if oldprompt != prompt:
+            print(f"New Prompt: {prompt}")
+
         gen_kwargs = {
-            "prompt": args.prompt,
+            "prompt": prompt,
             "image": input_image,
-            "height": h,
-            "width": w,
-            "guidance_scale": args.guidance,
+            "height": h>>4<<4,
+            "width": w>>4<<4,
+            #"guidance_scale": args.guidance,
             "num_inference_steps": args.steps,
         }
+
+        oldprompt=prompt
+
         if args.seed is not None:
             gen_kwargs["generator"] = torch.Generator(device=args.device).manual_seed(args.seed)
 

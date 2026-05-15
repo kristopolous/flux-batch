@@ -21,7 +21,7 @@ pip install -r requirements.txt
 ## Usage
 
 ```
-flux-batch -in <glob> -out <dir> <prompt>
+flux-batch -in <glob> -out <dir> -prompt <prompt>
 ```
 
 | Flag | Default | Description |
@@ -34,3 +34,8 @@ flux-batch -in <glob> -out <dir> <prompt>
 | `--guidance` | `3.0` | Guidance scale |
 | `--seed` | random | Seed for reproducibility |
 | `--no-offload` | (offload on) | Keep model on GPU |
+
+**Notes:** 
+
+ * The prompt file is reread at each file so you can do realtime modification of the content as you go through a batch. 
+ * Only the first line of the prompt file is read. This allows you manage your prompts however you please.
