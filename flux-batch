@@ -24,7 +24,7 @@ def main():
     parser.add_argument("-out", "--output-dir", required=True, help="Directory to write output images")
     parser.add_argument("-in", "--input-glob", help="Glob pattern for input images (e.g. '*.jpg')")
     parser.add_argument("--gguf", default=GGUF_URL, help=f"GGUF file path or URL (default: Q4_K_M from HuggingFace)")
-    parser.add_argument('-nc', action='store_true', help-'No Clobber')
+    parser.add_argument('-nc', action='store_true', help='No Clobber')
     parser.add_argument("--device", default="cuda", help="Torch device (default: cuda)")
     parser.add_argument("--count", default=1, type=int, help="Number of images to make")
     parser.add_argument("--steps", type=int, default=4, help="Number of inference steps (default: 4)")
