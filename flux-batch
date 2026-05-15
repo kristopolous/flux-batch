@@ -24,6 +24,7 @@ def main():
     parser.add_argument("-out", "--output-dir", required=True, help="Directory to write output images")
     parser.add_argument("-in", "--input-glob", help="Glob pattern for input images (e.g. '*.jpg')")
     parser.add_argument("--gguf", default=GGUF_URL, help=f"GGUF file path or URL (default: Q4_K_M from HuggingFace)")
+    parser.add_argument('-nc', action='store_true', help-'No Clobber')
     parser.add_argument("--device", default="cuda", help="Torch device (default: cuda)")
     parser.add_argument("--count", default=1, type=int, help="Number of images to make")
     parser.add_argument("--steps", type=int, default=4, help="Number of inference steps (default: 4)")
@@ -76,10 +77,22 @@ def main():
             t_start = time.time()
 
             if inpath:
+                stem = Path(inpath).stem
+                if args.count > 1:
+                  outpath = out_dir / f"{stem}-{c}.png"
+                else:
+                  outpath = out_dir / f"{stem}.png"
+
+                if args.nc and os.path.exists(output):
+                  print(f"Skipping {output}")
+                  continue
+
                 input_image = load_image(inpath)
+
                 w, h = input_image.size
             else:
                 w, h = 1024, 1024
+
 
             with open(args.prompt) as f:
                 prompt = f.readlines()[0]
@@ -102,11 +115,6 @@ def main():
             result = pipe(**gen_kwargs)
             image = result.images[0]
 
-            stem = Path(inpath).stem
-            if args.count > 1:
-              outpath = out_dir / f"{stem}-{c}.png"
-            else:
-              outpath = out_dir / f"{stem}.png"
             image.save(outpath)
 
             elapsed = time.time() - t_start
