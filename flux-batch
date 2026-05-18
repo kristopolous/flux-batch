@@ -63,15 +63,16 @@ def main():
             "  flux-batch -in '*.jpg' -out new/ 'repaint this as a disney cartoon'\n"
         ),
     )
-    parser.add_argument("-p" , "--prompt", required=True, help="Prompt from a file applied to every image")
-    parser.add_argument("-out", "--output-dir", required=True, help="Directory to write output images")
-    parser.add_argument("-in", "--input-glob", help="Glob pattern for input images (e.g. '*.jpg')")
+    parser.add_argument("-p", "--prompt", required=True, help="Prompt from a file applied to every image")
+    parser.add_argument("-o", "--out", required=True, dest="output_dir", help="Directory to write output images")
+    parser.add_argument("-i", "--in", dest="input_glob", help="Glob pattern for input images (e.g. '*.jpg')")
     parser.add_argument("--gguf", default=GGUF_URL, help=f"GGUF file path or URL (default: Q4_K_M from HuggingFace)")
     parser.add_argument('-nc', action='store_true', help='No Clobber')
-    parser.add_argument("--device", default="cuda", help="Torch device (default: cuda)")
-    parser.add_argument("--count", default=1, type=int, help="Number of images to make")
-    parser.add_argument("--steps", type=int, default=4, help="Number of inference steps (default: 4)")
-    parser.add_argument("--ref", action="append", dest="refs", metavar="IMAGE", help="Reference image(s), can be specified multiple times")
+    
+    parser.add_argument("-d", "--device", default="cuda", help="Torch device (default: cuda)")
+    parser.add_argument("-c", "--count", default=1, type=int, help="Number of images to make")
+    parser.add_argument("-s", "--steps", type=int, default=4, help="Number of inference steps (default: 4)")
+    parser.add_argument("-r", "--ref", action="append", dest="refs", metavar="IMAGE", help="Reference image(s), can be specified multiple times")
     parser.add_argument("--skeleton", action='store_true', help="Enable skeleton ControlNet mode")
     parser.add_argument("--skeleton-mode", default="auto", choices=["auto", "skeleton", "edges", "canny"], help="Skeleton extraction mode (default: auto)")
     parser.add_argument("--skeleton-strength", type=float, default=0.6, help="ControlNet conditioning scale for skeleton control (default: 0.6)")
