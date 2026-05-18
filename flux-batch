@@ -7,9 +7,52 @@ import os
 from pathlib import Path
 from glob import glob
 import time
+import numpy as np
+from PIL import Image, ImageDraw
 
 GGUF_URL = "https://huggingface.co/unsloth/FLUX.2-klein-9B-GGUF/blob/main/flux-2-klein-9b-Q4_K_M.gguf"
 BASE_MODEL = "black-forest-labs/FLUX.2-klein-9B"
+CONTROLNET_BASE_MODEL = "black-forest-labs/FLUX.1-dev"
+CONTROLNET_MODEL = "InstantX/FLUX.1-dev-Controlnet-Canny"
+
+POSE_CONNECTIONS = [
+    (0, 1), (1, 2), (2, 3), (3, 7),
+    (0, 4), (4, 5), (5, 6), (6, 8),
+    (9, 10), (11, 12), (11, 13), (13, 15), (15, 17), (15, 19), (15, 21), (17, 19),
+    (12, 14), (14, 16), (16, 18), (16, 20), (16, 22), (18, 20),
+    (11, 24), (12, 23), (23, 24), (23, 25), (24, 26), (25, 27), (26, 28), (27, 29), (28, 30), (29, 31), (30, 32),
+]
+
+def extract_pose(image):
+    import mediapipe as mp
+    mp_pose = mp.solutions.pose
+    with mp_pose.Pose(static_image_mode=True, model_complexity=2, enable_segmentation=True) as pose:
+        results = pose.process(np.array(image.convert('RGB')))
+        if results.pose_landmarks:
+            h, w = image.size[::-1]
+            landmarks = [(int(lm.x * w), int(lm.y * h)) for lm in results.pose_landmarks.landmark]
+            return landmarks
+    return None
+
+def render_skeleton(image, landmarks, color=(255, 255, 255), thickness=3):
+    skeleton = Image.new('RGB', image.size, (0, 0, 0))
+    draw = ImageDraw.Draw(skeleton)
+    for connection in POSE_CONNECTIONS:
+        start_idx, end_idx = connection
+        if landmarks[start_idx] and landmarks[end_idx]:
+            draw.line([landmarks[start_idx], landmarks[end_idx]], fill=color, width=thickness)
+    for lm in landmarks:
+        if lm:
+            x, y = lm
+            draw.ellipse([x-4, y-4, x+4, y+4], fill=color)
+    return skeleton
+
+def apply_canny(skeleton):
+    import cv2
+    arr = np.array(skeleton.convert('L'))
+    blurred = cv2.GaussianBlur(arr, (5, 5), 0)
+    edges = cv2.Canny(blurred, 30, 100)
+    return Image.fromarray(edges)
 
 def main():
     parser = argparse.ArgumentParser(
@@ -29,11 +72,17 @@ def main():
     parser.add_argument("--count", default=1, type=int, help="Number of images to make")
     parser.add_argument("--steps", type=int, default=4, help="Number of inference steps (default: 4)")
     parser.add_argument("--ref", action="append", dest="refs", metavar="IMAGE", help="Reference image(s), can be specified multiple times")
+    parser.add_argument("--skeleton", action='store_true', help="Enable skeleton ControlNet mode")
+    parser.add_argument("--skeleton-mode", default="auto", choices=["auto", "skeleton", "edges", "canny"], help="Skeleton extraction mode (default: auto)")
+    parser.add_argument("--skeleton-strength", type=float, default=0.6, help="ControlNet conditioning scale for skeleton control (default: 0.6)")
+    parser.add_argument("--skeleton-image", help="Pre-generated skeleton/control image path (skip auto-detection)")
+    parser.add_argument("--controlnet", default=CONTROLNET_MODEL, help=f"ControlNet model to use (default: {CONTROLNET_MODEL})")
 
     args = parser.parse_args()
 
     import torch
-    from diffusers import Flux2KleinPipeline, Flux2Transformer2DModel, GGUFQuantizationConfig
+    from diffusers import Flux2KleinPipeline, Flux2Transformer2DModel, GGUFQuantizationConfig, FluxControlNetPipeline
+    from diffusers.models.controlnets.controlnet_flux import FluxControlNetModel
     from diffusers.utils import load_image
 
     out_dir = Path(args.output_dir)
@@ -44,25 +93,44 @@ def main():
         sys.exit(1)
     print(f"using {args.device}", file=sys.stderr)
 
-    print(f"Loading GGUF {args.gguf} ...", file=sys.stderr)
-    t0 = time.time()
-    transformer = Flux2Transformer2DModel.from_single_file(
-        args.gguf,
-        quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
-        torch_dtype=torch.bfloat16,
-        config=BASE_MODEL,
-        subfolder="transformer"
-    )
+    if args.skeleton:
+        print(f"Loading ControlNet pipeline with {args.controlnet} ...", file=sys.stderr)
+        t0 = time.time()
+        controlnet = FluxControlNetModel.from_pretrained(
+            args.controlnet,
+            torch_dtype=torch.bfloat16,
+            variant="fp16",
+        )
+        pipe = FluxControlNetPipeline.from_pretrained(
+            CONTROLNET_BASE_MODEL,
+            controlnet=controlnet,
+            torch_dtype=torch.bfloat16,
+        )
+        pipe.enable_model_cpu_offload()
+        pipe.enable_vae_tiling()
+        t1 = time.time()
+        print(f"ControlNet pipeline ready in {t1 - t0:.1f}s", file=sys.stderr)
+        skeleton_cache = {}
+    else:
+        print(f"Loading GGUF {args.gguf} ...", file=sys.stderr)
+        t0 = time.time()
+        transformer = Flux2Transformer2DModel.from_single_file(
+            args.gguf,
+            quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
+            torch_dtype=torch.bfloat16,
+            config=BASE_MODEL,
+            subfolder="transformer"
+        )
 
-    pipe = Flux2KleinPipeline.from_pretrained(
-        BASE_MODEL,
-        transformer=transformer,
-        torch_dtype=torch.bfloat16,
-    )
-    pipe.enable_model_cpu_offload()
-
-    t1 = time.time()
-    print(f"Model ready in {t1 - t0:.1f}s", file=sys.stderr)
+        pipe = Flux2KleinPipeline.from_pretrained(
+            BASE_MODEL,
+            transformer=transformer,
+            torch_dtype=torch.bfloat16,
+        )
+        pipe.enable_model_cpu_offload()
+        t1 = time.time()
+        print(f"Model ready in {t1 - t0:.1f}s", file=sys.stderr)
+        skeleton_cache = None
 
     if args.input_glob:
         input_files = sorted(glob(args.input_glob))
@@ -70,9 +138,15 @@ def main():
     else:
         input_files = [None]
 
+    if args.skeleton and args.skeleton_image:
+        if any(c in args.skeleton_image for c in '*?['):
+            skeleton_files = sorted(glob(args.skeleton_image))
+        else:
+            skeleton_files = [args.skeleton_image]
+
     oldprompt = None
     refs = [load_image(r) for r in args.refs] if args.refs else []
-    for i, inpath in enumerate(input_files, 1):
+    for i, inpath in enumerate(input_files):
         for c in range(args.count):
             t_start = time.time()
 
@@ -92,6 +166,7 @@ def main():
                 w, h = input_image.size
             else:
                 w, h = 1024, 1024
+                input_image = None
 
 
             with open(args.prompt) as f:
@@ -100,19 +175,61 @@ def main():
             if oldprompt != prompt:
                 print(f"New Prompt: {prompt}")
 
-            gen_kwargs = {
-                "prompt": prompt,
-                "height": h & ~0xf,
-                "width": w & ~0xf,
-                "num_inference_steps": args.steps,
-            }
+            if args.skeleton:
+                if args.skeleton_image:
+                    skel_path = skeleton_files[i] if i < len(skeleton_files) else skeleton_files[-1]
+                    ctrl_img = load_image(skel_path).convert('L')
+                    if input_image is None:
+                        w, h = ctrl_img.size
+                    control_image = ctrl_img.resize((w & ~0xf, h & ~0xf))
+                else:
+                    if inpath and inpath in skeleton_cache:
+                        control_image = skeleton_cache[inpath]
+                    else:
+                        landmarks = extract_pose(input_image)
+                        if landmarks:
+                            if args.skeleton_mode == "skeleton":
+                                control_image = render_skeleton(input_image, landmarks).convert('L')
+                            elif args.skeleton_mode == "edges":
+                                control_image = render_skeleton(input_image, landmarks)
+                                control_image = apply_canny(control_image)
+                            elif args.skeleton_mode == "canny":
+                                control_image = apply_canny(input_image)
+                            else:
+                                control_image = render_skeleton(input_image, landmarks)
+                                control_image = apply_canny(control_image)
+                            control_image = control_image.resize((w & ~0xf, h & ~0xf))
+                            if inpath:
+                                skeleton_cache[inpath] = control_image
+                        else:
+                            print(f"No pose detected in {inpath}, falling back to canny edge detection", file=sys.stderr)
+                            control_image = apply_canny(input_image).resize((w & ~0xf, h & ~0xf))
 
-            if args.input_glob:
-                gen_kwargs['image'] = [input_image] + refs if refs else input_image
+                gen_kwargs = {
+                    "prompt": prompt,
+                    "control_image": control_image,
+                    "controlnet_conditioning_scale": args.skeleton_strength,
+                    "height": h & ~0xf,
+                    "width": w & ~0xf,
+                    "num_inference_steps": args.steps,
+                    "guidance_scale": 3.5,
+                }
+                result = pipe(**gen_kwargs)
+            else:
+                gen_kwargs = {
+                    "prompt": prompt,
+                    "height": h & ~0xf,
+                    "width": w & ~0xf,
+                    "num_inference_steps": args.steps,
+                }
+
+                if args.input_glob:
+                    gen_kwargs['image'] = [input_image] + refs if refs else input_image
 
             oldprompt=prompt
 
-            result = pipe(**gen_kwargs)
+            if not args.skeleton:
+                result = pipe(**gen_kwargs)
             image = result.images[0]
 
             image.save(outpath)
