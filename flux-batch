@@ -146,6 +146,7 @@ def main():
                 NSFW_TEXT_ENCODER, torch_dtype=torch.bfloat16
             )
             tokenizer_2 = AutoTokenizer.from_pretrained(NSFW_TEXT_ENCODER)
+
         pipe = Flux2KleinPipeline.from_pretrained(
             BASE_MODEL,
             transformer=transformer,
