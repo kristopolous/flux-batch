@@ -31,7 +31,7 @@ flux-batch --skeleton --skeleton-image "poses/*.png" -i "*.jpg" -o out/ -p promp
 
 # Adjust control strength (0.0-1.0)
 flux-batch --skeleton --skeleton-strength 0.8 -i "*.jpg" -o out/ -p prompt.txt
-```
+
 flux-batch -in <glob> -out <dir> -p <prompt>
 ```
 
