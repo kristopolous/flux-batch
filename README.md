@@ -68,15 +68,23 @@ flux-batch -in <glob> -out <dir> -p <prompt>
 | `--skeleton-strength` | `0.6` | ControlNet conditioning scale (0.0-1.0) |
 | `--skeleton-image` | — | Pre-generated skeleton/control image (supports glob patterns) |
 | `--controlnet` | `InstantX/FLUX.1-dev-Controlnet-Canny` | ControlNet model |
-| `--exact` | false | Use [exact](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) text encoder for unrestricted content |
+| `--exact` | false | Use [exact](https://huggingface.co/dx8152/Flux2-Klein-9B-Consistency) text encoder |
+| `--nsfw` | false | Use [uncensored](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) text encoder |
 | `-nc` | false | No Clobber — skip existing outputs |
 
 ### Text Encoders
 
-By default, flux-batch uses the censored FLUX text encoder. The `--exact` flag enables the [uncensored text encoder](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) for unrestricted content generation.
+By default, flux-batch uses the censored FLUX text encoder. Alternative text encoders can be enabled:
+
+- `--exact`: Uses [dx8152/Flux2-Klein-9B-Consistency](https://huggingface.co/dx8152/Flux2-Klein-9B-Consistency) for exact/prompt-following mode
+- `--nsfw`: Uses [ponpoke/flux2-klein-9b-uncensored-text-encoder](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) for unrestricted content
 
 ```bash
+# Use exact encoder
 flux-batch --exact -i "*.jpg" -o out/ -p prompt.txt
+
+# Use uncensored encoder
+flux-batch --nsfw -i "*.jpg" -o out/ -p prompt.txt
 ```
 
 ### Skeleton ControlNet Mode

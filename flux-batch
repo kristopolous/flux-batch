@@ -14,7 +14,8 @@ GGUF_URL = "https://huggingface.co/unsloth/FLUX.2-klein-9B-GGUF/blob/main/flux-2
 BASE_MODEL = "black-forest-labs/FLUX.2-klein-9B"
 CONTROLNET_BASE_MODEL = "black-forest-labs/FLUX.1-dev"
 CONTROLNET_MODEL = "InstantX/FLUX.1-dev-Controlnet-Canny"
-UNCENSORED_TEXT_ENCODER = "ponpoke/flux2-klein-9b-uncensored-text-encoder"
+EXACT_TEXT_ENCODER = "dx8152/Flux2-Klein-9B-Consistency"
+NSFW_TEXT_ENCODER = "ponpoke/flux2-klein-9b-uncensored-text-encoder"
 
 POSE_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 7),
@@ -79,7 +80,8 @@ def main():
     parser.add_argument("--skeleton-strength", type=float, default=0.6, help="ControlNet conditioning scale for skeleton control (default: 0.6)")
     parser.add_argument("--skeleton-image", help="Pre-generated skeleton/control image path (skip auto-detection)")
     parser.add_argument("--controlnet", default=CONTROLNET_MODEL, help=f"ControlNet model to use (default: {CONTROLNET_MODEL})")
-    parser.add_argument("--exact", action='store_true', help="Use exact (uncensored) text encoder for unrestricted content")
+    parser.add_argument("--exact", action='store_true', help="Use exact text encoder for unrestricted content")
+    parser.add_argument("--nsfw", action='store_true', help="Use uncensored text encoder for NSFW content")
 
     args = parser.parse_args()
 
@@ -108,14 +110,20 @@ def main():
             CONTROLNET_BASE_MODEL,
             controlnet=controlnet,
             torch_dtype=torch.bfloat16,
-            text_encoder=None if args.nsfw else True,
+            text_encoder=None if (args.exact or args.nsfw) else True,
         )
         if args.exact:
             from transformers import T5EncoderModel, AutoTokenizer
             pipe.text_encoder = T5EncoderModel.from_pretrained(
-                UNCENSORED_TEXT_ENCODER, torch_dtype=torch.bfloat16
+                EXACT_TEXT_ENCODER, torch_dtype=torch.bfloat16
             )
-            pipe.tokenizer_2 = AutoTokenizer.from_pretrained(UNCENSORED_TEXT_ENCODER)
+            pipe.tokenizer_2 = AutoTokenizer.from_pretrained(EXACT_TEXT_ENCODER)
+        elif args.nsfw:
+            from transformers import T5EncoderModel, AutoTokenizer
+            pipe.text_encoder = T5EncoderModel.from_pretrained(
+                NSFW_TEXT_ENCODER, torch_dtype=torch.bfloat16
+            )
+            pipe.tokenizer_2 = AutoTokenizer.from_pretrained(NSFW_TEXT_ENCODER)
         pipe.enable_model_cpu_offload()
         pipe.enable_vae_tiling()
         t1 = time.time()
@@ -136,14 +144,20 @@ def main():
             BASE_MODEL,
             transformer=transformer,
             torch_dtype=torch.bfloat16,
-            text_encoder=None if args.nsfw else True,
+            text_encoder=None if (args.exact or args.nsfw) else True,
         )
         if args.exact:
             from transformers import T5EncoderModel, AutoTokenizer
             pipe.text_encoder_2 = T5EncoderModel.from_pretrained(
-                UNCENSORED_TEXT_ENCODER, torch_dtype=torch.bfloat16
+                EXACT_TEXT_ENCODER, torch_dtype=torch.bfloat16
             )
-            pipe.tokenizer_2 = AutoTokenizer.from_pretrained(UNCENSORED_TEXT_ENCODER)
+            pipe.tokenizer_2 = AutoTokenizer.from_pretrained(EXACT_TEXT_ENCODER)
+        elif args.nsfw:
+            from transformers import T5EncoderModel, AutoTokenizer
+            pipe.text_encoder_2 = T5EncoderModel.from_pretrained(
+                NSFW_TEXT_ENCODER, torch_dtype=torch.bfloat16
+            )
+            pipe.tokenizer_2 = AutoTokenizer.from_pretrained(NSFW_TEXT_ENCODER)
         pipe.enable_model_cpu_offload()
         t1 = time.time()
         print(f"Model ready in {t1 - t0:.1f}s", file=sys.stderr)
