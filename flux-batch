@@ -99,6 +99,7 @@ def main():
     print(f"using {args.device}", file=sys.stderr)
 
     if args.skeleton:
+        from transformers import AutoModel, AutoTokenizer
         print(f"Loading ControlNet pipeline with {args.controlnet} ...", file=sys.stderr)
         t0 = time.time()
         controlnet = FluxControlNetModel.from_pretrained(
@@ -106,26 +107,29 @@ def main():
             torch_dtype=torch.bfloat16,
             variant="fp16",
         )
+        text_encoder = None
+        tokenizer = None
+        if args.nsfw:
+            text_encoder = AutoModel.from_pretrained(
+                NSFW_TEXT_ENCODER, torch_dtype=torch.bfloat16
+            )
+            tokenizer = AutoTokenizer.from_pretrained(NSFW_TEXT_ENCODER)
         pipe = FluxControlNetPipeline.from_pretrained(
             CONTROLNET_BASE_MODEL,
             controlnet=controlnet,
+            text_encoder=text_encoder,
+            tokenizer=tokenizer,
             torch_dtype=torch.bfloat16,
         )
         if args.exact:
             pipe.load_lora_weights(EXACT_LORA)
-        elif args.nsfw:
-            from transformers import T5EncoderModel, AutoTokenizer
-            pipe.text_encoder_2 = T5EncoderModel.from_pretrained(
-                NSFW_TEXT_ENCODER, torch_dtype=torch.bfloat16
-            )
-            pipe.tokenizer_2 = AutoTokenizer.from_pretrained(NSFW_TEXT_ENCODER)
         pipe.enable_model_cpu_offload()
         pipe.enable_vae_tiling()
         t1 = time.time()
         print(f"ControlNet pipeline ready in {t1 - t0:.1f}s", file=sys.stderr)
         skeleton_cache = {}
     else:
-        from transformers import T5EncoderModel, AutoTokenizer
+        from transformers import AutoModel, AutoTokenizer
         print(f"Loading GGUF {args.gguf} ...", file=sys.stderr)
         t0 = time.time()
         transformer = Flux2Transformer2DModel.from_single_file(
@@ -135,18 +139,18 @@ def main():
             config=BASE_MODEL,
             subfolder="transformer"
         )
-        text_encoder = None
-        tokenizer = None
+        text_encoder_2 = None
+        tokenizer_2 = None
         if args.nsfw:
-            text_encoder = T5EncoderModel.from_pretrained(
+            text_encoder_2 = AutoModel.from_pretrained(
                 NSFW_TEXT_ENCODER, torch_dtype=torch.bfloat16
             )
-            tokenizer = AutoTokenizer.from_pretrained(NSFW_TEXT_ENCODER)
+            tokenizer_2 = AutoTokenizer.from_pretrained(NSFW_TEXT_ENCODER)
         pipe = Flux2KleinPipeline.from_pretrained(
             BASE_MODEL,
             transformer=transformer,
-            text_encoder=text_encoder,
-            tokenizer=tokenizer,
+            text_encoder_2=text_encoder_2,
+            tokenizer_2=tokenizer_2,
             torch_dtype=torch.bfloat16,
         )
         if args.exact:
