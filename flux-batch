@@ -16,6 +16,7 @@ CONTROLNET_BASE_MODEL = "black-forest-labs/FLUX.1-dev"
 CONTROLNET_MODEL = "InstantX/FLUX.1-dev-Controlnet-Canny"
 EXACT_LORA = "dx8152/Flux2-Klein-9B-Consistency"
 NSFW_TEXT_ENCODER = "ponpoke/flux2-klein-9b-uncensored-text-encoder"
+NSFW_LORA = "https://civitai.com/api/download/models/2615554?type=Model&format=SafeTensor"
 
 POSE_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 7),
@@ -82,6 +83,7 @@ def main():
     parser.add_argument("--controlnet", default=CONTROLNET_MODEL, help=f"ControlNet model to use (default: {CONTROLNET_MODEL})")
     parser.add_argument("--exact", action='store_true', help="Use exact text encoder for unrestricted content")
     parser.add_argument("--nsfw", action='store_true', help="Use uncensored text encoder for NSFW content")
+    parser.add_argument("--nsfw-lora", help="LoRA to load with --nsfw (default: Klein anatomy fixer from CivitAI)")
 
     args = parser.parse_args()
 
@@ -123,6 +125,10 @@ def main():
         )
         if args.exact:
             pipe.load_lora_weights(EXACT_LORA)
+        if args.nsfw:
+            lora_path = args.nsfw_lora if args.nsfw_lora else NSFW_LORA
+            print(f"Loading NSFW LoRA: {lora_path}", file=sys.stderr)
+            pipe.load_lora_weights(lora_path)
         pipe.enable_model_cpu_offload()
         pipe.enable_vae_tiling()
         t1 = time.time()
@@ -142,9 +148,7 @@ def main():
         text_encoder_2 = None
         tokenizer_2 = None
         if args.nsfw:
-            text_encoder_2 = AutoModel.from_pretrained(
-                NSFW_TEXT_ENCODER, torch_dtype=torch.bfloat16
-            )
+            text_encoder_2 = AutoModel.from_pretrained( NSFW_TEXT_ENCODER, torch_dtype=torch.bfloat16)
             tokenizer_2 = AutoTokenizer.from_pretrained(NSFW_TEXT_ENCODER)
 
         pipe = Flux2KleinPipeline.from_pretrained(
@@ -156,6 +160,10 @@ def main():
         )
         if args.exact:
             pipe.load_lora_weights(EXACT_LORA)
+        if args.nsfw:
+            lora_path = args.nsfw_lora if args.nsfw_lora else NSFW_LORA
+            print(f"Loading NSFW LoRA: {lora_path}", file=sys.stderr)
+            pipe.load_lora_weights(lora_path)
         pipe.enable_model_cpu_offload()
         t1 = time.time()
         print(f"Model ready in {t1 - t0:.1f}s", file=sys.stderr)

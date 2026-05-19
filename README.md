@@ -73,7 +73,8 @@ flux-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.tx
 | `--skeleton-strength` | `0.6` | ControlNet conditioning scale (0.0-1.0) |
 | `--skeleton-image` | — | Pre-generated skeleton/control image (supports glob patterns) |
 | `--controlnet` | `InstantX/FLUX.1-dev-Controlnet-Canny` | ControlNet model |
-| `--exact` | false | Use [exact](https://huggingface.co/dx8152/Flux2-Klein-9B-Consistency) text encoder |
-| `--nsfw` | false | Use [uncensored](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) text encoder |
+| `--exact` | false | Use [exact](https://huggingface.co/dx8152/Flux2-Klein-9B-Consistency) text encoder (LoRA) |
+| `--nsfw` | false | Use [uncensored](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) text encoder + anatomy fixer LoRA |
+| `--nsfw-lora` | — | Custom LoRA URL/path for --nsfw (default: Klein anatomy fixer from CivitAI) |
 | `-nc` | false | No Clobber — skip existing outputs |
 
