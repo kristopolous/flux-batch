@@ -1,6 +1,8 @@
 # flux-batch
 
-Batch image editing with FLUX.2 [klein] Q4_K_M GGUF — run the same prompt across many images with dynamic prompting, static and dynamic reference images, support for multiple generations and step count modification along with multiple text encoders and loras
+Batch image editing with FLUX.2 [klein] Q4_K_M GGUF.
+
+Run the same prompt across many images with dynamic prompting, static and dynamic reference images, support for multiple generations and step count modification along with multiple text encoders and loras
 
 ```
 flux-batch -i "*.jpg" -o new/ -p prompt.txt
