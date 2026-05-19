@@ -14,7 +14,7 @@ GGUF_URL = "https://huggingface.co/unsloth/FLUX.2-klein-9B-GGUF/blob/main/flux-2
 BASE_MODEL = "black-forest-labs/FLUX.2-klein-9B"
 CONTROLNET_BASE_MODEL = "black-forest-labs/FLUX.1-dev"
 CONTROLNET_MODEL = "InstantX/FLUX.1-dev-Controlnet-Canny"
-EXACT_TEXT_ENCODER = "dx8152/Flux2-Klein-9B-Consistency"
+EXACT_LORA = "dx8152/Flux2-Klein-9B-Consistency"
 NSFW_TEXT_ENCODER = "ponpoke/flux2-klein-9b-uncensored-text-encoder"
 
 POSE_CONNECTIONS = [
@@ -113,11 +113,7 @@ def main():
             text_encoder=None if (args.exact or args.nsfw) else True,
         )
         if args.exact:
-            from transformers import T5EncoderModel, AutoTokenizer
-            pipe.text_encoder = T5EncoderModel.from_pretrained(
-                EXACT_TEXT_ENCODER, torch_dtype=torch.bfloat16
-            )
-            pipe.tokenizer_2 = AutoTokenizer.from_pretrained(EXACT_TEXT_ENCODER)
+            pipe.load_lora_weights(EXACT_LORA)
         elif args.nsfw:
             from transformers import T5EncoderModel, AutoTokenizer
             pipe.text_encoder = T5EncoderModel.from_pretrained(
@@ -144,14 +140,10 @@ def main():
             BASE_MODEL,
             transformer=transformer,
             torch_dtype=torch.bfloat16,
-            text_encoder=None if (args.exact or args.nsfw) else True,
+            text_encoder=None if args.nsfw else True,
         )
         if args.exact:
-            from transformers import T5EncoderModel, AutoTokenizer
-            pipe.text_encoder_2 = T5EncoderModel.from_pretrained(
-                EXACT_TEXT_ENCODER, torch_dtype=torch.bfloat16
-            )
-            pipe.tokenizer_2 = AutoTokenizer.from_pretrained(EXACT_TEXT_ENCODER)
+            pipe.load_lora_weights(EXACT_LORA)
         elif args.nsfw:
             from transformers import T5EncoderModel, AutoTokenizer
             pipe.text_encoder_2 = T5EncoderModel.from_pretrained(

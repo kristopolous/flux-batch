@@ -76,11 +76,11 @@ flux-batch -in <glob> -out <dir> -p <prompt>
 
 By default, flux-batch uses the censored FLUX text encoder. Alternative text encoders can be enabled:
 
-- `--exact`: Uses [dx8152/Flux2-Klein-9B-Consistency](https://huggingface.co/dx8152/Flux2-Klein-9B-Consistency) for exact/prompt-following mode
-- `--nsfw`: Uses [ponpoke/flux2-klein-9b-uncensored-text-encoder](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) for unrestricted content
+- `--exact`: Loads [dx8152/Flux2-Klein-9B-Consistency](https://huggingface.co/dx8152/Flux2-Klein-9B-Consistency) LoRA for improved consistency
+- `--nsfw`: Uses [ponpoke/flux2-klein-9b-uncensored-text-encoder](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) text encoder for unrestricted content
 
 ```bash
-# Use exact encoder
+# Use exact encoder (LoRA)
 flux-batch --exact -i "*.jpg" -o out/ -p prompt.txt
 
 # Use uncensored encoder
