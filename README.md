@@ -68,7 +68,16 @@ flux-batch -in <glob> -out <dir> -p <prompt>
 | `--skeleton-strength` | `0.6` | ControlNet conditioning scale (0.0-1.0) |
 | `--skeleton-image` | — | Pre-generated skeleton/control image (supports glob patterns) |
 | `--controlnet` | `InstantX/FLUX.1-dev-Controlnet-Canny` | ControlNet model |
+| `--exact` | false | Use [exact](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) text encoder for unrestricted content |
 | `-nc` | false | No Clobber — skip existing outputs |
+
+### Text Encoders
+
+By default, flux-batch uses the censored FLUX text encoder. The `--exact` flag enables the [uncensored text encoder](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) for unrestricted content generation.
+
+```bash
+flux-batch --exact -i "*.jpg" -o out/ -p prompt.txt
+```
 
 ### Skeleton ControlNet Mode
 
