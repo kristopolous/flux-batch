@@ -1,21 +1,9 @@
 # flux-batch
 
-Batch image editing with FLUX.2 [klein] Q4_K_M GGUF — run the same prompt across many images.
+Batch image editing with FLUX.2 [klein] Q4_K_M GGUF — run the same prompt across many images with dynamic prompting, static and dynamic reference images, support for multiple generations and step count modification along with multiple text encoders and loras
 
 ```
 flux-batch -i "*.jpg" -o new/ -p prompt.txt
-```
-
-## Requirements
-
-- GPU (tested on RTX 4090+)
-- Accept the [FLUX Non-Commercial License](https://huggingface.co/black-forest-labs/FLUX.2-klein-9B) on Hugging Face
-- Python 3.10+
-
-## Install
-
-```
-pip install -r requirements.txt
 ```
 
 ## Usage
