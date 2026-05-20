@@ -12,10 +12,23 @@ flux-batch -i "*.jpg" -o new/ -p prompt.txt
 - The prompt file is reread at each file so you can do realtime modification of the content as you go through a batch.
 - Only the first line of the prompt file is read. This allows you manage your prompts however you please.
 
-Here's an example. Look at how frame-matched it is with the original. I even have a nice little peek-a-boo window to compare
+Here's an example. This is 960 frames. 
+
+Look at how frame-matched it is with the original. I even have a nice little peek-a-boo window to compare
 
 
 https://github.com/user-attachments/assets/08e5e7ea-d49c-4cbd-9391-237583cf7396
+
+I did this for over 5,000 frames in the video, automatically with flux-batch. Here's a few up close!
+<table>
+  <tr>
+    
+<td><img width="1440" height="1072" alt="03884" src="https://github.com/user-attachments/assets/eb75541e-6e08-44e6-9d0a-ed8b52146e46" /></td>
+<td><img width="1440" height="1072" alt="03534" src="https://github.com/user-attachments/assets/5f1fc3f1-e6f8-41cc-a959-4f4714ddeedc" /></td></tr><tr>
+<td><img width="1440" height="1072" alt="03431" src="https://github.com/user-attachments/assets/d243e9b4-359d-4587-9b9c-6346392cb351" /></td>
+<td><img width="1440" height="1072" alt="03575" src="https://github.com/user-attachments/assets/54129fcd-5101-4c45-850e-aca1aed59d14" /></td>
+</tr>
+</table>
 
 
 
