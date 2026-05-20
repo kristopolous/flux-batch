@@ -12,6 +12,15 @@ flux-batch -i "*.jpg" -o new/ -p prompt.txt
 - The prompt file is reread at each file so you can do realtime modification of the content as you go through a batch.
 - Only the first line of the prompt file is read. This allows you manage your prompts however you please.
 
+Here's an example. Look at how frame-matched it is with the original. I even have a nice little peek-a-boo window to compare
+
+
+
+https://github.com/user-attachments/assets/392667a6-b3e7-4c23-b841-b11fe37e7816
+
+
+
+
 ### Text Encoders
 
 By default, flux-batch uses the censored FLUX text encoder. Alternative text encoders can be enabled:
