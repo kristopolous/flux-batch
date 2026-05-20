@@ -15,9 +15,7 @@ flux-batch -i "*.jpg" -o new/ -p prompt.txt
 Here's an example. Look at how frame-matched it is with the original. I even have a nice little peek-a-boo window to compare
 
 
-
-https://github.com/user-attachments/assets/392667a6-b3e7-4c23-b841-b11fe37e7816
-
+https://github.com/user-attachments/assets/08e5e7ea-d49c-4cbd-9391-237583cf7396
 
 
 
