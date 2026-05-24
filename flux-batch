@@ -163,19 +163,11 @@ def main():
             config=BASE_MODEL,
             subfolder="transformer"
         )
-        text_encoder_2 = None
-        tokenizer_2 = None
+        pipe_kwargs = dict(transformer=transformer, torch_dtype=torch.bfloat16)
         if args.nsfw:
-            text_encoder_2 = AutoModel.from_pretrained( NSFW_TEXT_ENCODER, torch_dtype=torch.bfloat16)
-            tokenizer_2 = AutoTokenizer.from_pretrained(NSFW_TEXT_ENCODER)
-
-        pipe = Flux2KleinPipeline.from_pretrained(
-            BASE_MODEL,
-            transformer=transformer,
-            text_encoder_2=text_encoder_2,
-            tokenizer_2=tokenizer_2,
-            torch_dtype=torch.bfloat16,
-        )
+            pipe_kwargs["text_encoder_2"] = AutoModel.from_pretrained(NSFW_TEXT_ENCODER, torch_dtype=torch.bfloat16)
+            pipe_kwargs["tokenizer_2"] = AutoTokenizer.from_pretrained(NSFW_TEXT_ENCODER)
+        pipe = Flux2KleinPipeline.from_pretrained(BASE_MODEL, **pipe_kwargs)
         if args.exact:
             pipe.load_lora_weights(EXACT_LORA)
         if args.nsfw:
