@@ -98,5 +98,6 @@ flux-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.tx
 | `--exact` | false | Use [exact](https://huggingface.co/dx8152/Flux2-Klein-9B-Consistency) text encoder (LoRA) |
 | `--nsfw` | false | Use [uncensored](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) text encoder + anatomy fixer LoRA |
 | `--nsfw-lora` | — | Custom LoRA URL/path for --nsfw (default: Klein anatomy fixer from CivitAI) |
+| `--lora-strength` | `2.5` | LoRA strength (recommended range: 1.0-3.0) |
 | `-nc` | false | No Clobber — skip existing outputs |
 

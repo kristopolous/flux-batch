@@ -94,6 +94,7 @@ def main():
     parser.add_argument("--exact", action='store_true', help="Use exact text encoder for unrestricted content")
     parser.add_argument("--nsfw", action='store_true', help="Use uncensored text encoder for NSFW content")
     parser.add_argument("--nsfw-lora", help="LoRA to load with --nsfw (default: Klein anatomy fixer from CivitAI)")
+    parser.add_argument("--lora-strength", type=float, default=2.5, help="LoRA strength (default: 2.5, range 1.0-3.0 recommended)")
 
     args = parser.parse_args()
 
@@ -143,8 +144,9 @@ def main():
                 if not cached.exists():
                     download_file(lora_path, cached)
                 lora_path = str(cached)
-            print(f"Loading NSFW LoRA: {lora_path}", file=sys.stderr)
-            pipe.load_lora_weights(lora_path)
+            print(f"Loading NSFW LoRA: {lora_path} (strength: {args.lora_strength})", file=sys.stderr)
+            pipe.load_lora_weights(lora_path, adapter_name="nsfw_lora")
+            pipe.set_adapters(["nsfw_lora"], adapter_weights=[args.lora_strength])
         pipe.enable_model_cpu_offload()
         pipe.enable_vae_tiling()
         t1 = time.time()
@@ -184,8 +186,9 @@ def main():
                 if not cached.exists():
                     download_file(lora_path, cached)
                 lora_path = str(cached)
-            print(f"Loading NSFW LoRA: {lora_path}", file=sys.stderr)
-            pipe.load_lora_weights(lora_path)
+            print(f"Loading NSFW LoRA: {lora_path} (strength: {args.lora_strength})", file=sys.stderr)
+            pipe.load_lora_weights(lora_path, adapter_name="nsfw_lora")
+            pipe.set_adapters(["nsfw_lora"], adapter_weights=[args.lora_strength])
         pipe.enable_model_cpu_offload()
         t1 = time.time()
         print(f"Model ready in {t1 - t0:.1f}s", file=sys.stderr)
