@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from glob import glob
 import time
+
 import numpy as np
 from PIL import Image, ImageDraw
 
@@ -76,6 +77,13 @@ def main():
             "  flux-batch -in '*.jpg' -out new/ 'repaint this as a disney cartoon'\n"
         ),
     )
+    try:
+        import subprocess
+        ver = subprocess.run(['git', 'describe', '--tags', '--dirty', '--always'],
+                            capture_output=True, text=True, check=True).stdout.strip()
+    except Exception:
+        ver = "0.0.0"
+    parser.add_argument("--version", action="version", version=f"%(prog)s {ver}")
     parser.add_argument("-p", "--prompt", required=True, help="Prompt from a file applied to every image")
     parser.add_argument("-o", "--out", required=True, dest="output_dir", help="Directory to write output images")
     parser.add_argument("-i", "--in", dest="input_glob", help="Glob pattern for input images (e.g. '*.jpg')")

@@ -1,6 +1,6 @@
 [project]
 name = "flux-batch"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Batch image editing with FLUX.2 klein Q4 GGUF"
 readme = "README.md"
 license = { text = "MIT" }
@@ -23,6 +23,13 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/kristopolous/flux-batch"
 Repository = "https://github.com/kristopolous/flux-batch.git"
+
+[build-system]
+requires = ["setuptools>=64", "setuptools-scm>=8"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools_scm]
+fallback_version = "0.0.0"
 
 [tool.setuptools]
 scripts = ["flux-batch"]
