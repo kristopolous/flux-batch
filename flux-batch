@@ -188,6 +188,9 @@ def main():
 
     if args.input_glob:
         input_files = sorted(glob(args.input_glob))
+        if not input_files:
+            print(f"Error: input glob '{args.input_glob}' matched no files", file=sys.stderr)
+            sys.exit(1)
         total = len(input_files)
     else:
         input_files = [None]
@@ -195,6 +198,9 @@ def main():
     if args.skeleton and args.skeleton_image:
         if any(c in args.skeleton_image for c in '*?['):
             skeleton_files = sorted(glob(args.skeleton_image))
+            if not skeleton_files:
+                print(f"Error: skeleton glob '{args.skeleton_image}' matched no files", file=sys.stderr)
+                sys.exit(1)
         else:
             skeleton_files = [args.skeleton_image]
 
