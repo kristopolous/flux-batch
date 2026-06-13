@@ -111,6 +111,18 @@ def main():
         sys.exit(1)
     print(f"using {args.device}", file=sys.stderr)
 
+    if args.refs:
+        for r in args.refs:
+            if not os.path.isfile(r):
+                print(f"Error: reference image '{r}' does not exist or is not a file", file=sys.stderr)
+                sys.exit(1)
+            try:
+                load_image(r)
+            except Exception as e:
+                print(f"Error: failed to load reference image '{r}': {e}", file=sys.stderr)
+                sys.exit(1)
+        print(f"Loaded {len(args.refs)} reference image(s)", file=sys.stderr)
+
     if args.skeleton:
         from transformers import AutoModel, AutoTokenizer
         print(f"Loading ControlNet pipeline with {args.controlnet} ...", file=sys.stderr)
@@ -272,7 +284,7 @@ def main():
                     "height": h & ~0xf,
                     "width": w & ~0xf,
                     "num_inference_steps": args.steps,
-                    "guidance_scale": 3.5,
+                    #"guidance_scale": 3.5,
                 }
                 result = pipe(**gen_kwargs)
             else:
