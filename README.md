@@ -19,6 +19,8 @@ Look at how frame-matched it is with the original. I even have a nice little pee
 
 https://github.com/user-attachments/assets/08e5e7ea-d49c-4cbd-9391-237583cf7396
 
+A version posted on YouTube: https://youtu.be/8TdXRJQygyY?si=RCVXLUbkEInJ_Z0r
+
 I did this for over 5,000 frames in the video, automatically with flux-batch. Here's a few up close!
 <table>
   <tr>
