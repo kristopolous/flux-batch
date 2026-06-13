@@ -91,7 +91,7 @@ flux-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.tx
 | `-c` / `--count` | `1` | Number of images to make |
 | `-d` / `--device` | `cuda` | Torch device |
 | `-s` / `--steps` | `4` | Inference steps |
-| `-r` / `--ref` | — | Reference image(s) for style/content (can be specified multiple times) |
+| `-r` / `--ref` | — | Reference image(s) for style/content. Supports glob patterns; matched files cycle in cadence with input images |
 | `--skeleton` | — | Enable skeleton ControlNet mode for pose-guided generation |
 | `--skeleton-mode` | `auto` | Skeleton extraction mode: `auto`, `skeleton`, `edges`, `canny` |
 | `--skeleton-strength` | `0.6` | ControlNet conditioning scale (0.0-1.0) |
@@ -101,5 +101,6 @@ flux-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.tx
 | `--nsfw` | false | Use [uncensored](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) text encoder + anatomy fixer LoRA |
 | `--nsfw-lora` | — | Custom LoRA URL/path for --nsfw (default: Klein anatomy fixer from CivitAI) |
 | `--lora-strength` | `2.5` | LoRA strength (recommended range: 1.0-3.0) |
+| `--scale` | `1.0` | Output size multiplier relative to input (e.g. 0.5 for half, 2.0 for double) |
 | `-nc` | false | No Clobber — skip existing outputs |
 
