@@ -1,3 +1,5 @@
 prompt
 .venv
 __pycache__
+*.jpg
+*.png
