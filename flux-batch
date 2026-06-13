@@ -112,6 +112,17 @@ def main():
     print(f"using {args.device}", file=sys.stderr)
 
     if args.refs:
+        expanded = []
+        for r in args.refs:
+            if any(c in r for c in '*?['):
+                matches = sorted(glob(r))
+                if not matches:
+                    print(f"Error: ref glob '{r}' matched no files", file=sys.stderr)
+                    sys.exit(1)
+                expanded.extend(matches)
+            else:
+                expanded.append(r)
+        args.refs = expanded
         for r in args.refs:
             if not os.path.isfile(r):
                 print(f"Error: reference image '{r}' does not exist or is not a file", file=sys.stderr)
@@ -296,7 +307,11 @@ def main():
                 }
 
                 if args.input_glob:
-                    gen_kwargs['image'] = [input_image] + refs if refs else input_image
+                    if refs:
+                        ref = refs[i % len(refs)]
+                        gen_kwargs['image'] = [input_image, ref]
+                    else:
+                        gen_kwargs['image'] = input_image
 
             oldprompt=prompt
 
