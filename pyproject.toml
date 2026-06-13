@@ -1,0 +1,28 @@
+[project]
+name = "flux-batch"
+version = "0.1.0"
+description = "Batch image editing with FLUX.2 klein Q4 GGUF"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [
+    { name = "Chris McKenzie", email = "kristopolous@yahoo.com" },
+]
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.5.0",
+    "diffusers>=0.33.0",
+    "gguf",
+    "bitsandbytes",
+    "transformers",
+    "accelerate",
+    "mediapipe",
+    "opencv-python",
+    "peft",
+]
+
+[project.urls]
+Homepage = "https://github.com/kristopolous/flux-batch"
+Repository = "https://github.com/kristopolous/flux-batch.git"
+
+[tool.setuptools]
+scripts = ["flux-batch"]
