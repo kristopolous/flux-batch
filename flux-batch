@@ -95,6 +95,7 @@ def main():
     parser.add_argument("--nsfw", action='store_true', help="Use uncensored text encoder for NSFW content")
     parser.add_argument("--nsfw-lora", help="LoRA to load with --nsfw (default: Klein anatomy fixer from CivitAI)")
     parser.add_argument("--lora-strength", type=float, default=2.5, help="LoRA strength (default: 2.5, range 1.0-3.0 recommended)")
+    parser.add_argument("--scale", type=float, default=1.0, help="Output size multiplier relative to input (default: 1.0)")
 
     args = parser.parse_args()
 
@@ -251,6 +252,8 @@ def main():
                 w, h = 1024, 1024
                 input_image = None
 
+            w = int(w * args.scale)
+            h = int(h * args.scale)
 
             with open(args.prompt) as f:
                 prompt = f.readlines()[0]
