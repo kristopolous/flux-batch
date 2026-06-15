@@ -367,7 +367,12 @@ def main():
                             content = f.read()
                         if content != ref_file_content:
                             ref_paths = [line.strip() for line in content.splitlines() if line.strip()]
-                            ref_file_images = [load_image(r) for r in ref_paths] if ref_paths else []
+                            ref_file_images = []
+                            for r in ref_paths:
+                                try:
+                                    ref_file_images.append(load_image(r))
+                                except Exception as e:
+                                    print(f"Error loading ref {r}: {e}, skipping", file=sys.stderr)
                             ref_file_content = content
                             print(f"New reference images ({len(ref_file_images)} file(s))")
                         iter_refs = ref_file_images
