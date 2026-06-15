@@ -92,8 +92,10 @@ def main():
     
     parser.add_argument("-d", "--device", default="cuda", help="Torch device (default: cuda)")
     parser.add_argument("-c", "--count", default=1, type=int, help="Number of images to make")
+    parser.add_argument("--shuf", action='store_true', help="Shuffle input files randomly")
     parser.add_argument("-s", "--steps", type=int, default=4, help="Number of inference steps (default: 4)")
     parser.add_argument("-r", "--ref", action="append", dest="refs", metavar="IMAGE", help="Reference image(s), can be specified multiple times")
+    parser.add_argument("-rf", "--ref-file", help="File listing reference images (one per line), re-read each iteration like --prompt")
     parser.add_argument("--skeleton", action='store_true', help="Enable skeleton ControlNet mode")
     parser.add_argument("--skeleton-mode", default="auto", choices=["auto", "skeleton", "edges", "canny"], help="Skeleton extraction mode (default: auto)")
     parser.add_argument("--skeleton-strength", type=float, default=0.6, help="ControlNet conditioning scale for skeleton control (default: 0.6)")
@@ -223,6 +225,9 @@ def main():
 
     if args.input_glob:
         input_files = sorted(glob(args.input_glob))
+        if args.shuf:
+            import random
+            random.shuffle(input_files)
         if not input_files:
             print(f"Error: input glob '{args.input_glob}' matched no files", file=sys.stderr)
             sys.exit(1)
@@ -241,6 +246,8 @@ def main():
 
     oldprompt = None
     refs = [load_image(r) for r in args.refs] if args.refs else []
+    ref_file_content = ""
+    ref_file_images = []
     for i, inpath in enumerate(input_files):
         for c in range(args.count):
             t_start = time.time()
@@ -355,8 +362,19 @@ def main():
                 }
 
                 if args.input_glob:
-                    if refs:
-                        ref = refs[i % len(refs)]
+                    if args.ref_file:
+                        with open(args.ref_file) as f:
+                            content = f.read()
+                        if content != ref_file_content:
+                            ref_paths = [line.strip() for line in content.splitlines() if line.strip()]
+                            ref_file_images = [load_image(r) for r in ref_paths] if ref_paths else []
+                            ref_file_content = content
+                            print(f"New reference images ({len(ref_file_images)} file(s))")
+                        iter_refs = ref_file_images
+                    else:
+                        iter_refs = refs
+                    if iter_refs:
+                        ref = iter_refs[i % len(iter_refs)]
                         gen_kwargs['image'] = [input_image, ref]
                     else:
                         gen_kwargs['image'] = input_image

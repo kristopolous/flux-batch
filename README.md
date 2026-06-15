@@ -2,14 +2,17 @@
 
 Batch image editing with FLUX.2 [klein 9B] Q4_K_M GGUF.
 
-Run the same prompt across many images with dynamic prompting, static and dynamic reference images, support for multiple generations and step count modification along with multiple text encoders and loras
+Run the same prompt across many images with dynamic prompting, static and dynamic reference images, support for multiple generations and step count modification along with multiple text encoders and loras.
+
+- Output directory (`-o`) is created automatically if it doesn't exist.
+- The prompt file is reread at each image, so you can modify it mid-batch.
+- The ref file (`-rf`) is also reread on each iteration — changes are detected by content comparison, and images are only reloaded when the file actually changes.
 
 ```
 flux-batch -i "*.jpg" -o new/ -p prompt.txt
 ```
 
 
-- The prompt file is reread at each file so you can do realtime modification of the content as you go through a batch.
 - Only the first line of the prompt file is read. This allows you manage your prompts however you please.
 
 Here's an example. This is 960 frames. 
@@ -102,5 +105,10 @@ flux-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.tx
 | `--nsfw-lora` | — | Custom LoRA URL/path for --nsfw (default: Klein anatomy fixer from CivitAI) |
 | `--lora-strength` | `2.5` | LoRA strength (recommended range: 1.0-3.0) |
 | `--scale` | `1.0` | Output size multiplier relative to input (e.g. 0.5 for half, 2.0 for double) |
+| `--max-width` | — | Maximum width constraint; overrides `--scale`, maintains aspect ratio |
+| `--max-height` | — | Maximum height constraint; overrides `--scale`, maintains aspect ratio |
+| `--ratio` | — | Target aspect ratio (e.g. `16:9`, `4:3`); applied after scale/max constraints, then reclamped to max bounds |
+| `-rf` / `--ref-file` | — | File listing reference images (one per line); re-read each iteration like `--prompt`, reloads images only on content change |
+| `--shuf` | false | Shuffle input file order randomly |
 | `-nc` | false | No Clobber — skip existing outputs |
 
