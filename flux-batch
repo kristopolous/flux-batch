@@ -125,28 +125,32 @@ def main():
         sys.exit(1)
     print(f"using {args.device}", file=sys.stderr)
 
+    ref_slots = []
+    ref_images = []
     if args.refs:
-        expanded = []
         for r in args.refs:
             if any(c in r for c in '*?['):
-                matches = sorted(glob(r))
-                if not matches:
+                slot_paths = sorted(glob(r))
+                if not slot_paths:
                     print(f"Error: ref glob '{r}' matched no files", file=sys.stderr)
                     sys.exit(1)
-                expanded.extend(matches)
             else:
-                expanded.append(r)
-        args.refs = expanded
-        for r in args.refs:
-            if not os.path.isfile(r):
-                print(f"Error: reference image '{r}' does not exist or is not a file", file=sys.stderr)
-                sys.exit(1)
-            try:
-                load_image(r)
-            except Exception as e:
-                print(f"Error: failed to load reference image '{r}': {e}", file=sys.stderr)
-                sys.exit(1)
-        print(f"Loaded {len(args.refs)} reference image(s)", file=sys.stderr)
+                slot_paths = [r]
+            slot_loaded = []
+            for p in slot_paths:
+                if not os.path.isfile(p):
+                    print(f"Error: reference image '{p}' does not exist or is not a file", file=sys.stderr)
+                    sys.exit(1)
+                try:
+                    slot_loaded.append(load_image(p))
+                except Exception as e:
+                    print(f"Error: failed to load reference image '{p}': {e}", file=sys.stderr)
+                    sys.exit(1)
+            ref_slots.append(slot_paths)
+            ref_images.append(slot_loaded)
+        total_slots = len(ref_slots)
+        total_refs = sum(len(s) for s in ref_slots)
+        print(f"Loaded {total_refs} reference image(s) across {total_slots} slot(s)", file=sys.stderr)
 
     if args.skeleton:
         from transformers import AutoModel, AutoTokenizer
@@ -245,7 +249,7 @@ def main():
             skeleton_files = [args.skeleton_image]
 
     oldprompt = None
-    refs = [load_image(r) for r in args.refs] if args.refs else []
+    refs = []  # unused, kept for compatibility; ref_slots/ref_images used instead
     ref_file_content = ""
     ref_file_images = []
     for i, inpath in enumerate(input_files):
@@ -374,13 +378,17 @@ def main():
                                 except Exception as e:
                                     print(f"Error loading ref {r}: {e}, skipping", file=sys.stderr)
                             ref_file_content = content
-                            print(f"New reference images ({len(ref_file_images)} file(s))")
+                            print(f"New references: {', '.join(ref_paths)}")
                         iter_refs = ref_file_images
                     else:
-                        iter_refs = refs
-                    if iter_refs:
+                        iter_refs = None
+                    if args.ref_file and iter_refs:
                         ref = iter_refs[i % len(iter_refs)]
                         gen_kwargs['image'] = [input_image, ref]
+                    elif ref_slots:
+                        slot_idx = i % len(ref_slots)
+                        inner_idx = i // len(ref_slots) % len(ref_slots[slot_idx])
+                        gen_kwargs['image'] = [input_image, ref_images[slot_idx][inner_idx]]
                     else:
                         gen_kwargs['image'] = input_image
 
