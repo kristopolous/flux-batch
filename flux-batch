@@ -104,6 +104,8 @@ def main():
     parser.add_argument("--nsfw-lora", help="LoRA to load with --nsfw (default: Klein anatomy fixer from CivitAI)")
     parser.add_argument("--lora-strength", type=float, default=2.5, help="LoRA strength (default: 2.5, range 1.0-3.0 recommended)")
     parser.add_argument("--scale", type=float, default=1.0, help="Output size multiplier relative to input (default: 1.0)")
+    parser.add_argument("--max-width", type=int, help="Maximum width constraint (overrides --scale, maintains aspect ratio)")
+    parser.add_argument("--max-height", type=int, help="Maximum height constraint (overrides --scale, maintains aspect ratio)")
 
     args = parser.parse_args()
 
@@ -253,15 +255,28 @@ def main():
                   print(f"Skipping {outpath}")
                   continue
 
-                input_image = load_image(inpath)
+                try:
+                    input_image = load_image(inpath)
+                except Exception as e:
+                    print(f"Error loading {inpath}: {e}, skipping", file=sys.stderr)
+                    continue
 
                 w, h = input_image.size
             else:
                 w, h = 1024, 1024
                 input_image = None
 
-            w = int(w * args.scale)
-            h = int(h * args.scale)
+            if args.max_width or args.max_height:
+                scale = 1.0
+                if args.max_width:
+                    scale = args.max_width / w
+                if args.max_height:
+                    scale = min(scale, args.max_height / h)
+                w = int(w * scale)
+                h = int(h * scale)
+            else:
+                w = int(w * args.scale)
+                h = int(h * args.scale)
 
             with open(args.prompt) as f:
                 prompt = f.readlines()[0]
