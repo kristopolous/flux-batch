@@ -238,6 +238,7 @@ def main():
         total = len(input_files)
     else:
         input_files = [None]
+        total = 1
 
     if args.skeleton and args.skeleton_image:
         if any(c in args.skeleton_image for c in '*?['):
@@ -277,6 +278,7 @@ def main():
             else:
                 w, h = 1024, 1024
                 input_image = None
+                outpath = out_dir / f"output-{c}.png"
 
             if args.max_width or args.max_height:
                 scale = 1.0
