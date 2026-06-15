@@ -106,6 +106,7 @@ def main():
     parser.add_argument("--scale", type=float, default=1.0, help="Output size multiplier relative to input (default: 1.0)")
     parser.add_argument("--max-width", type=int, help="Maximum width constraint (overrides --scale, maintains aspect ratio)")
     parser.add_argument("--max-height", type=int, help="Maximum height constraint (overrides --scale, maintains aspect ratio)")
+    parser.add_argument("--ratio", help="Target aspect ratio (e.g. '16:9', '4:3'), overrides input aspect ratio")
 
     args = parser.parse_args()
 
@@ -277,6 +278,27 @@ def main():
             else:
                 w = int(w * args.scale)
                 h = int(h * args.scale)
+
+            if args.ratio:
+                try:
+                    rw, rh = map(int, args.ratio.split(':', 1))
+                except (ValueError, AttributeError):
+                    print(f"Error: invalid ratio '{args.ratio}', expected format like '16:9'", file=sys.stderr)
+                    sys.exit(1)
+                target = rw / rh
+                if w / h > target:
+                    h = int(w / target)
+                else:
+                    w = int(h * target)
+
+            if args.max_width and w > args.max_width:
+                scale = args.max_width / w
+                w = int(w * scale)
+                h = int(h * scale)
+            if args.max_height and h > args.max_height:
+                scale = args.max_height / h
+                w = int(w * scale)
+                h = int(h * scale)
 
             with open(args.prompt) as f:
                 prompt = f.readlines()[0]
