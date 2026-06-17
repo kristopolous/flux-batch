@@ -105,6 +105,8 @@ def main():
     parser.add_argument("--nsfw", action='store_true', help="Use uncensored text encoder for NSFW content")
     parser.add_argument("--nsfw-lora", help="LoRA to load with --nsfw (default: Klein anatomy fixer from CivitAI)")
     parser.add_argument("--lora-strength", type=float, default=2.5, help="LoRA strength (default: 2.5, range 1.0-3.0 recommended)")
+    parser.add_argument("--width", type=int, help="Explicit output width (enforced)")
+    parser.add_argument("--height", type=int, help="Explicit output height (enforced)")
     parser.add_argument("--scale", type=float, default=1.0, help="Output size multiplier relative to input (default: 1.0)")
     parser.add_argument("--max-width", type=int, help="Maximum width constraint (overrides --scale, maintains aspect ratio)")
     parser.add_argument("--max-height", type=int, help="Maximum height constraint (overrides --scale, maintains aspect ratio)")
@@ -280,38 +282,65 @@ def main():
                 input_image = None
                 outpath = out_dir / f"output-{c}.png"
 
-            if args.max_width or args.max_height:
-                scale = 1.0
-                if args.max_width:
-                    scale = args.max_width / w
-                if args.max_height:
-                    scale = min(scale, args.max_height / h)
-                w = int(w * scale)
-                h = int(h * scale)
-            else:
-                w = int(w * args.scale)
-                h = int(h * args.scale)
+            orig_w, orig_h = w, h
 
-            if args.ratio:
-                try:
-                    rw, rh = map(int, args.ratio.split(':', 1))
-                except (ValueError, AttributeError):
-                    print(f"Error: invalid ratio '{args.ratio}', expected format like '16:9'", file=sys.stderr)
-                    sys.exit(1)
-                target = rw / rh
-                if w / h > target:
-                    h = int(w / target)
+            if args.width and args.height:
+                w, h = args.width, args.height
+            elif args.width:
+                w = args.width
+                if args.ratio:
+                    try:
+                        rw, rh = map(int, args.ratio.split(':', 1))
+                    except (ValueError, AttributeError):
+                        print(f"Error: invalid ratio '{args.ratio}', expected format like '16:9'", file=sys.stderr)
+                        sys.exit(1)
+                    h = int(w * rh / rw)
                 else:
-                    w = int(h * target)
+                    h = int(w * orig_h / orig_w)
+            elif args.height:
+                h = args.height
+                if args.ratio:
+                    try:
+                        rw, rh = map(int, args.ratio.split(':', 1))
+                    except (ValueError, AttributeError):
+                        print(f"Error: invalid ratio '{args.ratio}', expected format like '16:9'", file=sys.stderr)
+                        sys.exit(1)
+                    w = int(h * rw / rh)
+                else:
+                    w = int(h * orig_w / orig_h)
+            else:
+                if args.max_width or args.max_height:
+                    scale = 1.0
+                    if args.max_width:
+                        scale = args.max_width / w
+                    if args.max_height:
+                        scale = min(scale, args.max_height / h)
+                    w = int(w * scale)
+                    h = int(h * scale)
+                else:
+                    w = int(w * args.scale)
+                    h = int(h * args.scale)
 
-            if args.max_width and w > args.max_width:
-                scale = args.max_width / w
-                w = int(w * scale)
-                h = int(h * scale)
-            if args.max_height and h > args.max_height:
-                scale = args.max_height / h
-                w = int(w * scale)
-                h = int(h * scale)
+                if args.ratio:
+                    try:
+                        rw, rh = map(int, args.ratio.split(':', 1))
+                    except (ValueError, AttributeError):
+                        print(f"Error: invalid ratio '{args.ratio}', expected format like '16:9'", file=sys.stderr)
+                        sys.exit(1)
+                    target = rw / rh
+                    if w / h > target:
+                        h = int(w / target)
+                    else:
+                        w = int(h * target)
+
+                if args.max_width and w > args.max_width:
+                    scale = args.max_width / w
+                    w = int(w * scale)
+                    h = int(h * scale)
+                if args.max_height and h > args.max_height:
+                    scale = args.max_height / h
+                    w = int(w * scale)
+                    h = int(h * scale)
 
             with open(args.prompt) as f:
                 prompt = f.readlines()[0]
