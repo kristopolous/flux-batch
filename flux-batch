@@ -417,7 +417,7 @@ def main():
                     h = int(h * scale)
 
             with open(args.prompt) as f:
-                prompt = f.readlines()[0]
+                prompt = f.readlines()[0].strip()
 
             if oldprompt != prompt:
                 print(f"New Prompt: {prompt}")
