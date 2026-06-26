@@ -21,6 +21,7 @@ NSFW_LORA = "https://civitai.com/api/download/models/2615554"
 
 HIDREAM_MODEL = "HiDream-ai/HiDream-O1-Image"
 HIDREAM_PATCH = 32
+HIDREAM_REPO = "https://github.com/HiDream-ai/HiDream-O1-Image.git"
 
 LORA_CACHE_DIR = Path.home() / ".cache" / "flux-batch" / "loras"
 LORA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -163,17 +164,28 @@ def main():
         print(f"Loaded {total_refs} reference image(s) across {total_slots} slot(s)", file=sys.stderr)
 
     if args.model == "hidream":
-        hidream_path = args.hidream_path if args.hidream_path else HIDREAM_MODEL
         if args.hidream_path:
-            sys.path.insert(0, os.path.abspath(args.hidream_path))
+            hidream_src = Path(os.path.abspath(args.hidream_path))
+        else:
+            hidream_src = LORA_CACHE_DIR.parent / "hidream" / "HiDream-O1-Image"
+            if not (hidream_src / "models" / "pipeline.py").exists():
+                print(f"Cloning HiDream-O1-Image repo to {hidream_src} ...", file=sys.stderr)
+                hidream_src.parent.mkdir(parents=True, exist_ok=True)
+                import subprocess
+                subprocess.run(
+                    ["git", "clone", "--depth", "1", HIDREAM_REPO, str(hidream_src)],
+                    check=True, capture_output=True, text=True
+                )
+        sys.path.insert(0, str(hidream_src))
+        hidream_model_path = args.hidream_path if args.hidream_path else HIDREAM_MODEL
         from transformers import AutoProcessor
         from models.pipeline import generate_image, DEFAULT_TIMESTEPS
         from models.qwen3_vl_transformers import Qwen3VLForConditionalGeneration
-        print(f"Loading HiDream model from {hidream_path} ...", file=sys.stderr)
+        print(f"Loading HiDream model from {hidream_model_path} ...", file=sys.stderr)
         t0 = time.time()
-        processor = AutoProcessor.from_pretrained(hidream_path)
+        processor = AutoProcessor.from_pretrained(hidream_model_path)
         hidream_model = Qwen3VLForConditionalGeneration.from_pretrained(
-            hidream_path, torch_dtype=torch.bfloat16, device_map="cuda"
+            hidream_model_path, torch_dtype=torch.bfloat16, device_map="cuda"
         ).eval()
         tokenizer = processor.tokenizer
         tokenizer.boi_token = "<|boi_token|>"
