@@ -39,6 +39,7 @@ dependencies = [
     "einops",
     "tqdm",
     "scipy",
+    "flash-attn",
 ]
 
 [project.urls]

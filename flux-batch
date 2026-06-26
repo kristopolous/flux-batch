@@ -199,8 +199,15 @@ def main():
         t0 = time.time()
         processor = AutoProcessor.from_pretrained(hidream_model_path)
         hidream_model = Qwen3VLForConditionalGeneration.from_pretrained(
-            hidream_model_path, torch_dtype=torch.bfloat16, device_map="cuda"
-        ).eval()
+            hidream_model_path, torch_dtype=torch.bfloat16, _fast_init=False
+        )
+        for mod in hidream_model.modules():
+            if isinstance(mod, Qwen3VLTextRotaryEmbedding):
+                buf, _ = _hidream_default_rope(mod.config)
+                mod._buffers.pop("inv_freq", None)
+                mod.register_buffer("inv_freq", buf, persistent=False)
+                mod.original_inv_freq = mod.inv_freq
+        hidream_model = hidream_model.to("cuda").eval()
         tokenizer = processor.tokenizer
         tokenizer.boi_token = "<|boi_token|>"
         tokenizer.bor_token = "<|bor_token|>"

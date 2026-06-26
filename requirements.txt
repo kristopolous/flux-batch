@@ -7,3 +7,4 @@ accelerate
 mediapipe
 opencv-python
 peft
+flash-attn
