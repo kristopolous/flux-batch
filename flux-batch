@@ -178,9 +178,23 @@ def main():
                 )
         sys.path.insert(0, str(hidream_src))
         hidream_model_path = args.hidream_path if args.hidream_path else HIDREAM_MODEL
+        def _hidream_default_rope(config, device=None, seq_len=None, layer_type=None):
+            import torch
+            theta = 10000.0
+            if hasattr(config, "rope_scaling") and config.rope_scaling:
+                theta = config.rope_scaling.get("rope_theta", theta)
+            elif hasattr(config, "rope_theta"):
+                theta = config.rope_theta
+            head_dim = getattr(config, "head_dim", None) or config.hidden_size // config.num_attention_heads
+            inv_freq = 1.0 / (theta ** (torch.arange(0, head_dim, 2, dtype=torch.int64, device=device).float() / head_dim))
+            return inv_freq, 1.0
+        from transformers.modeling_rope_utils import ROPE_INIT_FUNCTIONS
+        if "default" not in ROPE_INIT_FUNCTIONS:
+            ROPE_INIT_FUNCTIONS["default"] = _hidream_default_rope
         from transformers import AutoProcessor
         from models.pipeline import generate_image, DEFAULT_TIMESTEPS
-        from models.qwen3_vl_transformers import Qwen3VLForConditionalGeneration
+        from models.qwen3_vl_transformers import Qwen3VLForConditionalGeneration, Qwen3VLTextRotaryEmbedding
+        Qwen3VLTextRotaryEmbedding.compute_default_rope_parameters = staticmethod(_hidream_default_rope)
         print(f"Loading HiDream model from {hidream_model_path} ...", file=sys.stderr)
         t0 = time.time()
         processor = AutoProcessor.from_pretrained(hidream_model_path)
