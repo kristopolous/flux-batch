@@ -1,8 +1,8 @@
 # flux-batch
 
-Batch image editing with FLUX.2 [klein 9B] Q4_K_M GGUF.
+Batch image processing with FLUX.2 [klein 9B] Q4_K_M GGUF or [HiDream-O1-Image](https://huggingface.co/HiDream-ai/HiDream-O1-Image).
 
-Run the same prompt across many images with dynamic prompting, static and dynamic reference images, support for multiple generations and step count modification along with multiple text encoders and loras.
+Run the same prompt across many images with dynamic prompting, static and dynamic reference images, support for multiple generations and step count modification along with multiple text encoders and loras. Optionally use HiDream-O1-Image as the backend model.
 
 - Output directory (`-o`) is created automatically if it doesn't exist.
 - The prompt file is reread at each image, so you can modify it mid-batch.
@@ -51,6 +51,33 @@ flux-batch --exact -i "*.jpg" -o out/ -p prompt.txt
 # Use uncensored encoder
 flux-batch --nsfw -i "*.jpg" -o out/ -p prompt.txt
 ```
+
+### HiDream-O1-Image Mode
+
+Use `--model hidream` to run [HiDream-O1-Image](https://huggingface.co/HiDream-ai/HiDream-O1-Image), a natively unified 8B image generation model. This is text-to-image only (no img2img conditioning) — input image globs provide size reference but aren't used for content.
+
+```bash
+# Basic text-to-image
+flux-batch --model hidream -o out/ -p prompt.txt --width 1024 --height 1024
+
+# Use dev model (28-step distilled variant)
+flux-batch --model hidream --model-type dev -o out/ -p prompt.txt
+
+# With a local clone of the HiDream repo
+flux-batch --model hidream --hidream-path /path/to/HiDream-O1-Image -o out/ -p prompt.txt
+```
+
+You'll need the HiDream repo dependencies installed (`pip install -r /path/to/HiDream-O1-Image/requirements.txt`) and `transformers>=4.57.1`.
+
+**HiDream-only flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--model` | `flux` | Model to use: `flux` or `hidream` |
+| `--hidream-path` | — | Path to local HiDream-O1-Image repo (uses HF hub by default) |
+| `--model-type` | `full` | `full` (25 steps, guidance 5.0) or `dev` (28 steps, guidance 0.0) |
+| `--guidance-scale` | * | Guidance scale (5.0 full, 0.0 dev) |
+| `--seed` | `42` | Random seed for reproducibility |
 
 ### Skeleton ControlNet Mode
 
@@ -111,4 +138,9 @@ flux-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.tx
 | `-rf` / `--ref-file` | — | File listing reference images (one per line); re-read each iteration like `--prompt`, reloads images only on content change |
 | `--shuf` | false | Shuffle input file order randomly |
 | `-nc` | false | No Clobber — skip existing outputs |
+| `--model` | `flux` | Model backend: `flux` or `hidream` |
+| `--hidream-path` | — | Path to local HiDream-O1-Image repo directory |
+| `--model-type` | `full` | HiDream variant: `full` (25 steps) or `dev` (28 steps) |
+| `--guidance-scale` | * | HiDream guidance scale (5.0 full, 0.0 dev) |
+| `--seed` | `42` | Random seed for generation |
 
