@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Batch-process images through FLUX.2 klein (GGUF Q4) with a single prompt."""
+"""Batch-process images through FLUX.2 klein (GGUF Q4) or HiDream-O1-Image with a single prompt."""
 
 import argparse
 import sys
@@ -18,6 +18,9 @@ CONTROLNET_MODEL = "InstantX/FLUX.1-dev-Controlnet-Canny"
 EXACT_LORA = "dx8152/Flux2-Klein-9B-Consistency"
 NSFW_TEXT_ENCODER = "ponpoke/flux2-klein-9b-uncensored-text-encoder"
 NSFW_LORA = "https://civitai.com/api/download/models/2615554"
+
+HIDREAM_MODEL = "HiDream-ai/HiDream-O1-Image"
+HIDREAM_PATCH = 32
 
 LORA_CACHE_DIR = Path.home() / ".cache" / "flux-batch" / "loras"
 LORA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -111,6 +114,11 @@ def main():
     parser.add_argument("--max-width", type=int, help="Maximum width constraint (overrides --scale, maintains aspect ratio)")
     parser.add_argument("--max-height", type=int, help="Maximum height constraint (overrides --scale, maintains aspect ratio)")
     parser.add_argument("--ratio", help="Target aspect ratio (e.g. '16:9', '4:3'), overrides input aspect ratio")
+    parser.add_argument("--model", default="flux", choices=["flux", "hidream"], help="Model to use (default: flux)")
+    parser.add_argument("--hidream-path", help="Path to local HiDream-O1-Image repo directory (uses HF hub by default)")
+    parser.add_argument("--model-type", default="full", choices=["full", "dev"], help="HiDream model type: full (50 steps) or dev (28 steps)")
+    parser.add_argument("--guidance-scale", type=float, help="Guidance scale (default: 5.0 full, 0.0 dev)")
+    parser.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
 
     args = parser.parse_args()
 
@@ -154,7 +162,40 @@ def main():
         total_refs = sum(len(s) for s in ref_slots)
         print(f"Loaded {total_refs} reference image(s) across {total_slots} slot(s)", file=sys.stderr)
 
-    if args.skeleton:
+    if args.model == "hidream":
+        hidream_path = args.hidream_path if args.hidream_path else HIDREAM_MODEL
+        if args.hidream_path:
+            sys.path.insert(0, os.path.abspath(args.hidream_path))
+        from transformers import AutoProcessor
+        from models.pipeline import generate_image, DEFAULT_TIMESTEPS
+        from models.qwen3_vl_transformers import Qwen3VLForConditionalGeneration
+        print(f"Loading HiDream model from {hidream_path} ...", file=sys.stderr)
+        t0 = time.time()
+        processor = AutoProcessor.from_pretrained(hidream_path)
+        hidream_model = Qwen3VLForConditionalGeneration.from_pretrained(
+            hidream_path, torch_dtype=torch.bfloat16, device_map="cuda"
+        ).eval()
+        tokenizer = processor.tokenizer
+        tokenizer.boi_token = "<|boi_token|>"
+        tokenizer.bor_token = "<|bor_token|>"
+        tokenizer.eor_token = "<|eor_token|>"
+        tokenizer.bot_token = "<|bot_token|>"
+        tokenizer.tms_token = "<|tms_token|>"
+        t1 = time.time()
+        print(f"HiDream model ready in {t1 - t0:.1f}s", file=sys.stderr)
+        if args.model_type == "dev":
+            hidream_steps = 28
+            hidream_guidance = args.guidance_scale if args.guidance_scale is not None else 0.0
+            hidream_shift = 1.0
+            hidream_timesteps = DEFAULT_TIMESTEPS
+            hidream_scheduler = "flash"
+        else:
+            hidream_steps = args.steps if args.steps != 4 else 25
+            hidream_guidance = args.guidance_scale if args.guidance_scale is not None else 5.0
+            hidream_shift = 3.0
+            hidream_timesteps = None
+            hidream_scheduler = "default"
+    elif args.skeleton:
         from transformers import AutoModel, AutoTokenizer
         print(f"Loading ControlNet pipeline with {args.controlnet} ...", file=sys.stderr)
         t0 = time.time()
@@ -347,6 +388,25 @@ def main():
 
             if oldprompt != prompt:
                 print(f"New Prompt: {prompt}")
+
+            if args.model == "hidream":
+                image = generate_image(
+                    model=hidream_model,
+                    processor=processor,
+                    prompt=prompt,
+                    height=h & ~(HIDREAM_PATCH - 1),
+                    width=w & ~(HIDREAM_PATCH - 1),
+                    num_inference_steps=hidream_steps,
+                    guidance_scale=hidream_guidance,
+                    shift=hidream_shift,
+                    timesteps_list=hidream_timesteps,
+                    scheduler_name=hidream_scheduler,
+                    seed=args.seed,
+                )
+                image.save(outpath)
+                elapsed = time.time() - t_start
+                print(f"{elapsed:.1f}s -> {outpath}", file=sys.stderr)
+                continue
 
             if args.skeleton:
                 if args.skeleton_image:

@@ -1,7 +1,7 @@
 [project]
 name = "flux-batch"
 dynamic = ["version"]
-description = "Batch image editing with FLUX.2 klein Q4 GGUF"
+description = "Batch image processing with FLUX.2 klein Q4 GGUF or HiDream-O1-Image"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
@@ -27,6 +27,7 @@ classifiers = [
 ]
 dependencies = [
     "torch>=2.5.0",
+    "torchvision",
     "diffusers>=0.33.0",
     "gguf",
     "bitsandbytes",
@@ -35,6 +36,9 @@ dependencies = [
     "mediapipe",
     "opencv-python",
     "peft",
+    "einops",
+    "tqdm",
+    "scipy",
 ]
 
 [project.urls]
