@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Batch-process images through FLUX.2 klein (GGUF Q4) or HiDream-O1-Image with a single prompt."""
+"""Batch-process images through FLUX.2 klein (GGUF Q4), HiDream-O1-Image, or Boogu-Image-0.1-Edit with a single prompt."""
 
 import argparse
 import sys
@@ -22,6 +22,8 @@ NSFW_LORA = "https://civitai.com/api/download/models/2615554"
 HIDREAM_MODEL = "HiDream-ai/HiDream-O1-Image"
 HIDREAM_PATCH = 32
 HIDREAM_REPO = "https://github.com/HiDream-ai/HiDream-O1-Image.git"
+
+BOOGU_EDIT_MODEL = "Boogu/Boogu-Image-0.1-Edit"
 
 LORA_CACHE_DIR = Path.home() / ".cache" / "flux-batch" / "loras"
 LORA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -74,7 +76,7 @@ def apply_canny(skeleton):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Batch image editing with FLUX.2 klein Q4 GGUF",
+        description="Batch image processing with FLUX.2 klein Q4 GGUF, HiDream-O1-Image, or Boogu-Image-0.1-Edit",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Examples:\n"
@@ -115,10 +117,13 @@ def main():
     parser.add_argument("--max-width", type=int, help="Maximum width constraint (overrides --scale, maintains aspect ratio)")
     parser.add_argument("--max-height", type=int, help="Maximum height constraint (overrides --scale, maintains aspect ratio)")
     parser.add_argument("--ratio", help="Target aspect ratio (e.g. '16:9', '4:3'), overrides input aspect ratio")
-    parser.add_argument("--model", default="flux", choices=["flux", "hidream"], help="Model to use (default: flux)")
+    parser.add_argument("--model", default="flux", choices=["flux", "hidream", "boogu"], help="Model to use (default: flux)")
     parser.add_argument("--hidream-path", help="Path to local HiDream-O1-Image repo directory (uses HF hub by default)")
     parser.add_argument("--model-type", default="full", choices=["full", "dev"], help="HiDream model type: full (50 steps) or dev (28 steps)")
     parser.add_argument("--guidance-scale", type=float, help="Guidance scale (default: 5.0 full, 0.0 dev)")
+    parser.add_argument("--boogu-path", help="Path to local Boogu-Image-0.1-Edit model directory (uses HF hub by default)")
+    parser.add_argument("--text-guidance-scale", type=float, default=5.0, help="Text guidance scale for Boogu-Edit (default: 5.0)")
+    parser.add_argument("--image-guidance-scale", type=float, default=1.0, help="Image guidance scale for Boogu-Edit (default: 1.0)")
     parser.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
 
     args = parser.parse_args()
@@ -228,6 +233,17 @@ def main():
             hidream_shift = 3.0
             hidream_timesteps = None
             hidream_scheduler = "default"
+    elif args.model == "boogu":
+        from diffusers import DiffusionPipeline
+        boogu_path = args.boogu_path if args.boogu_path else BOOGU_EDIT_MODEL
+        print(f"Loading Boogu-Image-0.1-Edit from {boogu_path} ...", file=sys.stderr)
+        t0 = time.time()
+        pipe = DiffusionPipeline.from_pretrained(
+            boogu_path, torch_dtype=torch.bfloat16
+        )
+        pipe.enable_model_cpu_offload()
+        t1 = time.time()
+        print(f"Boogu-Edit model ready in {t1 - t0:.1f}s", file=sys.stderr)
     elif args.skeleton:
         from transformers import AutoModel, AutoTokenizer
         print(f"Loading ControlNet pipeline with {args.controlnet} ...", file=sys.stderr)
@@ -436,6 +452,27 @@ def main():
                     scheduler_name=hidream_scheduler,
                     seed=args.seed,
                 )
+                image.save(outpath)
+                elapsed = time.time() - t_start
+                print(f"{elapsed:.1f}s -> {outpath}", file=sys.stderr)
+                continue
+
+            if args.model == "boogu":
+                generator = torch.Generator(device=args.device).manual_seed(args.seed)
+                pipe_kwargs = dict(
+                    instruction=prompt,
+                    height=h,
+                    width=w,
+                    num_inference_steps=args.steps,
+                    text_guidance_scale=args.text_guidance_scale,
+                    image_guidance_scale=args.image_guidance_scale,
+                    generator=generator,
+                    output_type="pil",
+                )
+                if input_image is not None:
+                    pipe_kwargs["input_images"] = [[input_image]]
+                result = pipe(**pipe_kwargs)
+                image = result.images[0]
                 image.save(outpath)
                 elapsed = time.time() - t_start
                 print(f"{elapsed:.1f}s -> {outpath}", file=sys.stderr)

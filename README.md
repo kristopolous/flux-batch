@@ -1,8 +1,8 @@
 # flux-batch
 
-Batch image processing with FLUX.2 [klein 9B] Q4_K_M GGUF or [HiDream-O1-Image](https://huggingface.co/HiDream-ai/HiDream-O1-Image).
+Batch image processing with FLUX.2 [klein 9B] Q4_K_M GGUF, [HiDream-O1-Image](https://huggingface.co/HiDream-ai/HiDream-O1-Image), or [Boogu-Image-0.1-Edit](https://huggingface.co/Boogu/Boogu-Image-0.1-Edit).
 
-Run the same prompt across many images with dynamic prompting, static and dynamic reference images, support for multiple generations and step count modification along with multiple text encoders and loras. Optionally use HiDream-O1-Image as the backend model.
+Run the same prompt across many images with dynamic prompting, static and dynamic reference images, support for multiple generations and step count modification along with multiple text encoders and loras. Optionally use HiDream-O1-Image or Boogu-Image-0.1-Edit as the backend model.
 
 - Output directory (`-o`) is created automatically if it doesn't exist.
 - The prompt file is reread at each image, so you can modify it mid-batch.
@@ -73,11 +73,34 @@ You'll need the HiDream repo dependencies installed (`pip install -r /path/to/Hi
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--model` | `flux` | Model to use: `flux` or `hidream` |
+| `--model` | `flux` | Model to use: `flux`, `hidream`, or `boogu` |
 | `--hidream-path` | — | Path to local HiDream-O1-Image repo (uses HF hub by default) |
 | `--model-type` | `full` | `full` (25 steps, guidance 5.0) or `dev` (28 steps, guidance 0.0) |
 | `--guidance-scale` | * | Guidance scale (5.0 full, 0.0 dev) |
 | `--seed` | `42` | Random seed for reproducibility |
+
+### Boogu-Image-0.1-Edit Mode
+
+Use `--model boogu` to run [Boogu-Image-0.1-Edit](https://huggingface.co/Boogu/Boogu-Image-0.1-Edit), a 10B unified image editing model. Input images are used as the source for editing, and the prompt provides the editing instruction.
+
+```bash
+# Basic image editing
+flux-batch --model boogu -i "*.jpg" -o out/ -p prompt.txt
+
+# With custom guidance scales
+flux-batch --model boogu -i "*.jpg" -o out/ -p prompt.txt --text-guidance-scale 4.0 --image-guidance-scale 1.2
+
+# Text-to-image only (no input image)
+flux-batch --model boogu -o out/ -p prompt.txt --width 1024 --height 1024
+```
+
+**Boogu flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--boogu-path` | — | Path to local Boogu-Image-0.1-Edit model directory (uses HF hub by default) |
+| `--text-guidance-scale` | `5.0` | Text guidance scale (2.0-5.0 recommended) |
+| `--image-guidance-scale` | `1.0` | Image guidance scale |
 
 ### Skeleton ControlNet Mode
 
@@ -138,9 +161,12 @@ flux-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.tx
 | `-rf` / `--ref-file` | — | File listing reference images (one per line); re-read each iteration like `--prompt`, reloads images only on content change |
 | `--shuf` | false | Shuffle input file order randomly |
 | `-nc` | false | No Clobber — skip existing outputs |
-| `--model` | `flux` | Model backend: `flux` or `hidream` |
+| `--model` | `flux` | Model backend: `flux`, `hidream`, or `boogu` |
 | `--hidream-path` | — | Path to local HiDream-O1-Image repo directory |
 | `--model-type` | `full` | HiDream variant: `full` (25 steps) or `dev` (28 steps) |
 | `--guidance-scale` | * | HiDream guidance scale (5.0 full, 0.0 dev) |
+| `--boogu-path` | — | Path to local Boogu-Image-0.1-Edit model directory |
+| `--text-guidance-scale` | `5.0` | Text guidance scale for Boogu |
+| `--image-guidance-scale` | `1.0` | Image guidance scale for Boogu |
 | `--seed` | `42` | Random seed for generation |
 

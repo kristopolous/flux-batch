@@ -1,7 +1,7 @@
 [project]
 name = "flux-batch"
 dynamic = ["version"]
-description = "Batch image processing with FLUX.2 klein Q4 GGUF or HiDream-O1-Image"
+description = "Batch image processing with FLUX.2 klein Q4 GGUF, HiDream-O1-Image, or Boogu-Image-0.1-Edit"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
