@@ -84,12 +84,11 @@ def main():
         ),
     )
     try:
-        import subprocess
-        ver = subprocess.run(['git', 'describe', '--tags', '--dirty', '--always'],
-                            capture_output=True, text=True, check=True).stdout.strip()
+        from importlib.metadata import version as _impver
+        ver = _impver("flux-batch")
     except Exception:
-        ver = "0.0.0"
-    parser.add_argument("--version", action="version", version=f"%(prog)s {ver}")
+        ver = "0.1.0"
+    parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {ver}")
     parser.add_argument("-p", "--prompt", required=True, help="Prompt from a file applied to every image")
     parser.add_argument("-o", "--out", required=True, dest="output_dir", help="Directory to write output images")
     parser.add_argument("-i", "--in", dest="input_glob", help="Glob pattern for input images (e.g. '*.jpg')")

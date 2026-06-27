@@ -1,4 +1,4 @@
-# flux-batch
+# edit-batch
 
 Batch image processing with FLUX.2 [klein 9B] Q4_K_M GGUF, [HiDream-O1-Image](https://huggingface.co/HiDream-ai/HiDream-O1-Image), or [Boogu-Image-0.1-Edit](https://huggingface.co/Boogu/Boogu-Image-0.1-Edit).
 
@@ -9,7 +9,7 @@ Run the same prompt across many images with dynamic prompting, static and dynami
 - The ref file (`-rf`) is also reread on each iteration — changes are detected by content comparison, and images are only reloaded when the file actually changes.
 
 ```
-flux-batch -i "*.jpg" -o new/ -p prompt.txt
+edit-batch -i "*.jpg" -o new/ -p prompt.txt
 ```
 
 
@@ -24,7 +24,7 @@ https://github.com/user-attachments/assets/08e5e7ea-d49c-4cbd-9391-237583cf7396
 
 A version posted on YouTube: https://youtu.be/8TdXRJQygyY?si=RCVXLUbkEInJ_Z0r
 
-I did this for over 5,000 frames in the video, automatically with flux-batch. Here's a few up close!
+I did this for over 5,000 frames in the video, automatically with edit-batch. Here's a few up close!
 <table>
   <tr>
     
@@ -39,17 +39,17 @@ I did this for over 5,000 frames in the video, automatically with flux-batch. He
 
 ### Text Encoders
 
-By default, flux-batch uses the censored FLUX text encoder. Alternative text encoders can be enabled:
+By default, edit-batch uses the censored FLUX text encoder. Alternative text encoders can be enabled:
 
 - `--exact`: Loads [dx8152/Flux2-Klein-9B-Consistency](https://huggingface.co/dx8152/Flux2-Klein-9B-Consistency) LoRA for improved consistency
 - `--nsfw`: Uses [ponpoke/flux2-klein-9b-uncensored-text-encoder](https://huggingface.co/ponpoke/flux2-klein-9b-uncensored-text-encoder) text encoder for unrestricted content
 
 ```bash
 # Use exact encoder (LoRA)
-flux-batch --exact -i "*.jpg" -o out/ -p prompt.txt
+edit-batch --exact -i "*.jpg" -o out/ -p prompt.txt
 
 # Use uncensored encoder
-flux-batch --nsfw -i "*.jpg" -o out/ -p prompt.txt
+edit-batch --nsfw -i "*.jpg" -o out/ -p prompt.txt
 ```
 
 ### HiDream-O1-Image Mode
@@ -58,13 +58,13 @@ Use `--model hidream` to run [HiDream-O1-Image](https://huggingface.co/HiDream-a
 
 ```bash
 # Basic text-to-image
-flux-batch --model hidream -o out/ -p prompt.txt --width 1024 --height 1024
+edit-batch --model hidream -o out/ -p prompt.txt --width 1024 --height 1024
 
 # Use dev model (28-step distilled variant)
-flux-batch --model hidream --model-type dev -o out/ -p prompt.txt
+edit-batch --model hidream --model-type dev -o out/ -p prompt.txt
 
 # With a local clone of the HiDream repo
-flux-batch --model hidream --hidream-path /path/to/HiDream-O1-Image -o out/ -p prompt.txt
+edit-batch --model hidream --hidream-path /path/to/HiDream-O1-Image -o out/ -p prompt.txt
 ```
 
 You'll need the HiDream repo dependencies installed (`pip install -r /path/to/HiDream-O1-Image/requirements.txt`) and `transformers>=4.57.1`.
@@ -85,13 +85,13 @@ Use `--model boogu` to run [Boogu-Image-0.1-Edit](https://huggingface.co/Boogu/B
 
 ```bash
 # Basic image editing
-flux-batch --model boogu -i "*.jpg" -o out/ -p prompt.txt
+edit-batch --model boogu -i "*.jpg" -o out/ -p prompt.txt
 
 # With custom guidance scales
-flux-batch --model boogu -i "*.jpg" -o out/ -p prompt.txt --text-guidance-scale 4.0 --image-guidance-scale 1.2
+edit-batch --model boogu -i "*.jpg" -o out/ -p prompt.txt --text-guidance-scale 4.0 --image-guidance-scale 1.2
 
 # Text-to-image only (no input image)
-flux-batch --model boogu -o out/ -p prompt.txt --width 1024 --height 1024
+edit-batch --model boogu -o out/ -p prompt.txt --width 1024 --height 1024
 ```
 
 **Boogu flags:**
@@ -108,19 +108,19 @@ Use `--skeleton` to guide generation with detected human poses or custom skeleto
 
 ```bash
 # Auto-detect pose from input images and apply skeleton control
-flux-batch --skeleton -in "*.jpg" -out pose_out/ -p prompt.txt
+edit-batch --skeleton -in "*.jpg" -out pose_out/ -p prompt.txt
 
 # Pure skeleton lines (no Canny edges)
-flux-batch --skeleton --skeleton-mode skeleton -in "*.jpg" -out pose_out/ -p prompt.txt
+edit-batch --skeleton --skeleton-mode skeleton -in "*.jpg" -out pose_out/ -p prompt.txt
 
 # Use pre-generated skeleton image (reused for all inputs)
-flux-batch --skeleton --skeleton-image pose.png -in "*.jpg" -out out/ -p prompt.txt
+edit-batch --skeleton --skeleton-image pose.png -in "*.jpg" -out out/ -p prompt.txt
 
 # Use globbed skeleton images paired with input images
-flux-batch --skeleton --skeleton-image "poses/*.png" -in "*.jpg" -out out/ -p prompt.txt
+edit-batch --skeleton --skeleton-image "poses/*.png" -in "*.jpg" -out out/ -p prompt.txt
 
 # Adjust control strength (0.0-1.0)
-flux-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.txt
+edit-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.txt
 ```
 
 **Skeleton modes:**

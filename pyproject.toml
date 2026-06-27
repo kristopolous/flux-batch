@@ -1,6 +1,6 @@
 [project]
-name = "flux-batch"
-dynamic = ["version"]
+name = "edit-batch"
+version = "0.1.0"
 description = "Batch image processing with FLUX.2 klein Q4 GGUF, HiDream-O1-Image, or Boogu-Image-0.1-Edit"
 readme = "README.md"
 license = { text = "MIT" }
@@ -55,4 +55,4 @@ build-backend = "setuptools.build_meta"
 fallback_version = "0.1.0"
 
 [tool.setuptools]
-scripts = ["flux-batch"]
+scripts = ["edit-batch"]
