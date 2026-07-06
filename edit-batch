@@ -2,6 +2,7 @@
 """Batch-process images through FLUX.2 klein (GGUF Q4), HiDream-O1-Image, or Boogu-Image-0.1-Edit with a single prompt."""
 
 import argparse
+import json
 import sys
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ import time
 
 import numpy as np
 from PIL import Image, ImageDraw
+from PIL.PngImagePlugin import PngInfo
 
 GGUF_URL = "https://huggingface.co/unsloth/FLUX.2-klein-9B-GGUF/blob/main/flux-2-klein-9b-Q4_K_M.gguf"
 BASE_MODEL = "black-forest-labs/FLUX.2-klein-9B"
@@ -37,6 +39,16 @@ if _hf_hub.is_symlink() and not _hf_hub.exists():
     _hf_hub.unlink()
     _hf_hub.mkdir(parents=True, exist_ok=True)
     print("Fixed broken HuggingFace Hub cache symlink", file=sys.stderr)
+
+def write_image(image, outpath, prompt, seed):
+    meta = json.dumps({"prompt": prompt, "seed": seed}, ensure_ascii=False)
+    ext = Path(outpath).suffix.lower()
+    if ext == ".png":
+        pnginfo = PngInfo()
+        pnginfo.add_text("Description", meta)
+        image.save(outpath, pnginfo=pnginfo)
+    else:
+        image.save(outpath, comment=meta)
 
 def download_file(url, dest):
     import subprocess
@@ -590,7 +602,6 @@ def main():
 
                 prompt = all[c % len(all)].strip()
                 if prompt[0] == '#':
-                    print("Skipping")
                     continue
 
             if oldprompt != prompt:
@@ -610,7 +621,7 @@ def main():
                     scheduler_name=hidream_scheduler,
                     seed=args.seed,
                 )
-                image.save(outpath)
+                write_image(image, outpath, prompt, args.seed)
                 if args.cumulative:
                     cum_outs.append(image)
                 elapsed = time.time() - t_start
@@ -638,7 +649,7 @@ def main():
                     pipe_kwargs["input_images"] = [refs_for_boogu]
                 result = pipe(**pipe_kwargs)
                 image = result.images[0]
-                image.save(outpath)
+                write_image(image, outpath, prompt, args.seed)
                 if args.cumulative:
                     cum_outs.append(image)
                 elapsed = time.time() - t_start
@@ -694,22 +705,24 @@ def main():
                 }
 
                 if args.input_glob:
-                    if args.ref_file:
-                        with open(args.ref_file) as f:
-                            content = f.read()
-                        if content != ref_file_content:
-                            ref_paths = [line.strip() for line in content.splitlines() if line.strip()]
-                            ref_file_images = []
-                            for r in ref_paths:
-                                try:
-                                    ref_file_images.append(load_image(r))
-                                except Exception as e:
-                                    print(f"Error loading ref {r}: {e}, skipping", file=sys.stderr)
-                            ref_file_content = content
-                            print(f"New references: {', '.join(ref_paths)}")
-                        iter_refs = ref_file_images
+                    if args.ref_file or len(cum_outs):
+                        if args.ref_file:
+                            with open(args.ref_file) as f:
+                              content = f.read()
+                            if content != ref_file_content:
+                              ref_paths = [line.strip() for line in content.splitlines() if line.strip()]
+                              ref_file_images = []
+                              for r in ref_paths:
+                                  try:
+                                      ref_file_images.append(load_image(r))
+                                  except Exception as e:
+                                      print(f"Error loading ref {r}: {e}, skipping", file=sys.stderr)
+                              ref_file_content = content
+                              print(f"New references: {', '.join(ref_paths)}")
+                        iter_refs = ref_file_images + cum_outs
                     else:
                         iter_refs = None
+
                     if args.ref_file and iter_refs:
                         ref = iter_refs[i % len(iter_refs)]
                         gen_kwargs['image'] = [input_image, ref]
@@ -726,7 +739,7 @@ def main():
                 result = pipe(**gen_kwargs)
             image = result.images[0]
 
-            image.save(outpath)
+            write_image(image, outpath, prompt, args.seed)
             if args.cumulative:
                 cum_outs.append(image)
 
