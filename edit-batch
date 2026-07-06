@@ -586,10 +586,13 @@ def main():
             with open(args.prompt) as f:
                 all = f.readlines()
                 if len(all) != count:
-                    print(f"Changing to {len(all)} pre run")
+                    print(f"Changing to {len(all)}")
                     count = len(all)
 
                 prompt = all[c % len(all)].strip()
+                if prompt[0] == '#':
+                    print("Skipping")
+                    continue
 
             if oldprompt != prompt:
                 print(f"New Prompt: {prompt}")
