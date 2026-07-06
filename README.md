@@ -15,7 +15,8 @@ edit-batch -i "*.jpg" -o new/ -p prompt.txt
 ```
 
 
-- Only the first line of the prompt file is read. This allows you manage your prompts however you please.
+- The prompt file can contain multiple lines. Each line generates a separate image per input, cycling through prompts sequentially. Lines starting with `#` are skipped as comments.
+- When multiple prompt lines are present, `--count` is automatically overridden to match the number of lines.
 
 Here's an example. This is 960 frames. 
 
