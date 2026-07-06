@@ -101,10 +101,11 @@ def main():
     
     parser.add_argument("--boogu-path", help="Path to local Boogu-Image-0.1-Edit model directory (uses HF hub by default)")
     parser.add_argument("--controlnet", default=CONTROLNET_MODEL, help=f"ControlNet model to use (default: {CONTROLNET_MODEL})")
+    parser.add_argument("--cumulative", action='store_true', help="Chain generations: each output becomes a reference for the next")
     parser.add_argument("--exact", action='store_true', help="Use exact text encoder for unrestricted content")
     parser.add_argument("--gguf", default=GGUF_URL, help=f"GGUF file path or URL (default: Q4_K_M from HuggingFace)")
     parser.add_argument("--guidance-scale", type=float, help="Guidance scale (default: 5.0 full, 0.0 dev)")
-    parser.add_argument("--hidream-path", help="Path to local HiDream-O1-Image repo directory (uses HF hub by default)")
+
     parser.add_argument("--image-guidance-scale", type=float, default=1.0, help="Image guidance scale for Boogu-Edit (default: 1.0)")
     parser.add_argument("--lora-strength", type=float, default=2.5, help="LoRA strength (default: 2.5, range 1.0-3.0 recommended)")
     parser.add_argument("--max-height", type=int, help="Maximum height constraint (overrides --scale, maintains aspect ratio)")
@@ -179,20 +180,17 @@ def main():
         print(f"Loaded {total_refs} reference image(s) across {total_slots} slot(s)", file=sys.stderr)
 
     if args.model == "hidream":
-        if args.hidream_path:
-            hidream_src = Path(os.path.abspath(args.hidream_path))
-        else:
-            hidream_src = LORA_CACHE_DIR.parent / "hidream" / "HiDream-O1-Image"
-            if not (hidream_src / "models" / "pipeline.py").exists():
-                print(f"Cloning HiDream-O1-Image repo to {hidream_src} ...", file=sys.stderr)
-                hidream_src.parent.mkdir(parents=True, exist_ok=True)
-                import subprocess
-                subprocess.run(
-                    ["git", "clone", "--depth", "1", HIDREAM_REPO, str(hidream_src)],
-                    check=True, capture_output=True, text=True
-                )
+        hidream_src = LORA_CACHE_DIR.parent / "hidream" / "HiDream-O1-Image"  # cached at ~/.cache/flux-batch/hidream/HiDream-O1-Image
+        if not (hidream_src / "models" / "pipeline.py").exists():
+            print(f"Cloning HiDream-O1-Image repo to {hidream_src} ...", file=sys.stderr)
+            hidream_src.parent.mkdir(parents=True, exist_ok=True)
+            import subprocess
+            subprocess.run(
+                ["git", "clone", "--depth", "1", HIDREAM_REPO, str(hidream_src)],
+                check=True, capture_output=True, text=True
+            )
         sys.path.insert(0, str(hidream_src))
-        hidream_model_path = args.hidream_path if args.hidream_path else HIDREAM_MODEL
+        hidream_model_path = HIDREAM_MODEL
         def _hidream_default_rope(config, device=None, seq_len=None, layer_type=None):
             import torch
             theta = 10000.0
@@ -257,7 +255,7 @@ def main():
             print(f"Boogu-Edit model ready in {t1 - t0:.1f}s", file=sys.stderr)
         else:
             # Auto-setup: clone Boogu repo, download GGUF, load with quantized transformer
-            boogu_src = LORA_CACHE_DIR.parent / "boogu" / "Boogu-Image"
+            boogu_src = LORA_CACHE_DIR.parent / "boogu" / "Boogu-Image"  # cached at ~/.cache/flux-batch/boogu/Boogu-Image
             if not (boogu_src / "boogu" / "models" / "transformers" / "transformer_boogu.py").exists():
                 print(f"Cloning Boogu-Image repo to {boogu_src} ...", file=sys.stderr)
                 boogu_src.parent.mkdir(parents=True, exist_ok=True)
@@ -495,8 +493,10 @@ def main():
     refs = []  # unused, kept for compatibility; ref_slots/ref_images used instead
     ref_file_content = ""
     ref_file_images = []
+    cum_outs = []
     count = args.count
     for i, inpath in enumerate(input_files):
+        cum_outs.clear()
         for c in range(count):
             t_start = time.time()
 
@@ -508,7 +508,6 @@ def main():
                   outpath = out_dir / f"{stem}.png"
 
                 if args.nc and os.path.exists(outpath):
-                  print(f"Skipping {outpath}")
                   continue
 
                 try:
@@ -612,6 +611,8 @@ def main():
                     seed=args.seed,
                 )
                 image.save(outpath)
+                if args.cumulative:
+                    cum_outs.append(image)
                 elapsed = time.time() - t_start
                 print(f"{elapsed:.1f}s -> {outpath}", file=sys.stderr)
                 continue
@@ -628,11 +629,18 @@ def main():
                     generator=generator,
                     output_type="pil",
                 )
+                refs_for_boogu = []
                 if input_image is not None:
-                    pipe_kwargs["input_images"] = [[input_image]]
+                    refs_for_boogu.append(input_image)
+                if args.cumulative:
+                    refs_for_boogu.extend(cum_outs)
+                if refs_for_boogu:
+                    pipe_kwargs["input_images"] = [refs_for_boogu]
                 result = pipe(**pipe_kwargs)
                 image = result.images[0]
                 image.save(outpath)
+                if args.cumulative:
+                    cum_outs.append(image)
                 elapsed = time.time() - t_start
                 print(f"{elapsed:.1f}s -> {outpath}", file=sys.stderr)
                 continue
@@ -719,6 +727,8 @@ def main():
             image = result.images[0]
 
             image.save(outpath)
+            if args.cumulative:
+                cum_outs.append(image)
 
             elapsed = time.time() - t_start
             print(f"{elapsed:.1f}s -> {outpath}", file=sys.stderr)

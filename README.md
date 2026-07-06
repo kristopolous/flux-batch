@@ -4,6 +4,8 @@ Batch image processing with FLUX.2 [klein 9B] Q4_K_M GGUF, [HiDream-O1-Image](ht
 
 Run the same prompt across many images with dynamic prompting, static and dynamic reference images, support for multiple generations and step count modification along with multiple text encoders and loras. Optionally use HiDream-O1-Image or Boogu-Image-0.1-Edit as the backend model.
 
+Repos, GGUFs, and other dependencies are cached under `~/.cache/flux-batch/`.
+
 - Output directory (`-o`) is created automatically if it doesn't exist.
 - The prompt file is reread at each image, so you can modify it mid-batch.
 - The ref file (`-rf`) is also reread on each iteration — changes are detected by content comparison, and images are only reloaded when the file actually changes.
@@ -63,8 +65,6 @@ edit-batch --model hidream -o out/ -p prompt.txt --width 1024 --height 1024
 # Use dev model (28-step distilled variant)
 edit-batch --model hidream --model-type dev -o out/ -p prompt.txt
 
-# With a local clone of the HiDream repo
-edit-batch --model hidream --hidream-path /path/to/HiDream-O1-Image -o out/ -p prompt.txt
 ```
 
 You'll need the HiDream repo dependencies installed (`pip install -r /path/to/HiDream-O1-Image/requirements.txt`) and `transformers>=4.57.1`.
@@ -74,7 +74,6 @@ You'll need the HiDream repo dependencies installed (`pip install -r /path/to/Hi
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--model` | `flux` | Model to use: `flux`, `hidream`, or `boogu` |
-| `--hidream-path` | — | Path to local HiDream-O1-Image repo (uses HF hub by default) |
 | `--model-type` | `full` | `full` (25 steps, guidance 5.0) or `dev` (28 steps, guidance 0.0) |
 | `--guidance-scale` | * | Guidance scale (5.0 full, 0.0 dev) |
 | `--seed` | `42` | Random seed for reproducibility |
@@ -148,6 +147,7 @@ edit-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.tx
 |------|---------|-------------|
 | `-i` / `--in` | — | Glob pattern for input images (e.g. `"*.jpg"`) |
 | `-c` / `--count` | `1` | Number of images to make |
+| `--cumulative` | false | Chain generations: each output becomes a reference for the next (boogu: added as `input_images`; other models: tracked in memory) |
 | `-d` / `--device` | `cuda` | Torch device |
 | `-s` / `--steps` | `4` | Inference steps |
 | `-r` / `--ref` | — | Reference image(s) for style/content. Supports glob patterns; matched files cycle in cadence with input images |
@@ -168,10 +168,9 @@ edit-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.tx
 | `--shuf` | false | Shuffle input file order randomly |
 | `-nc` | false | No Clobber — skip existing outputs |
 | `--model` | `flux` | Model backend: `flux`, `hidream`, or `boogu` |
-| `--hidream-path` | — | Path to local HiDream-O1-Image repo directory |
+
 | `--model-type` | `full` | HiDream variant: `full` (25 steps) or `dev` (28 steps) |
 | `--guidance-scale` | * | HiDream guidance scale (5.0 full, 0.0 dev) |
-| `--boogu-path` | — | Path to local Boogu-Image-0.1-Edit model directory |
 | `--text-guidance-scale` | `5.0` | Text guidance scale for Boogu |
 | `--image-guidance-scale` | `1.0` | Image guidance scale for Boogu |
 | `--seed` | `42` | Random seed for generation |
