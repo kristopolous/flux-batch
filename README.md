@@ -79,16 +79,20 @@ You'll need the HiDream repo dependencies installed (`pip install -r /path/to/Hi
 | `--guidance-scale` | * | Guidance scale (5.0 full, 0.0 dev) |
 | `--seed` | `42` | Random seed for reproducibility |
 
-### Boogu-Image-0.1-Edit Mode
+### Boogu-Image-0.1-Edit-Turbo GGUF Mode
 
-Use `--model boogu` to run [Boogu-Image-0.1-Edit](https://huggingface.co/Boogu/Boogu-Image-0.1-Edit), a 10B unified image editing model. Input images are used as the source for editing, and the prompt provides the editing instruction.
+Use `--model boogu` to run [Boogu-Image-0.1-Edit-Turbo](https://huggingface.co/Boogu/Boogu-Image-0.1-Edit-Turbo), a 10B unified image editing model with DMD few-step inference.
+
+When no `--boogu-path` is given, the script automatically:
+1. Clones the [Boogu-Image](https://github.com/BOOGU-Project/Boogu-Image) repo on first run
+2. Downloads the GGUF-quantized transformer (Q4_1, ~6.9 GiB) from HuggingFace
+3. Loads the Qwen3VL MLLM in 4-bit via bitsandbytes to save VRAM
+
+The pipeline runs in **DMD turbo mode** (4 steps, no CFG by default). When the default guidance scales (`--text-guidance-scale 5.0 --image-guidance-scale 1.0`) are unchanged, the script auto-adjusts both to 1.0 for DMD.
 
 ```bash
 # Basic image editing
 edit-batch --model boogu -i "*.jpg" -o out/ -p prompt.txt
-
-# With custom guidance scales
-edit-batch --model boogu -i "*.jpg" -o out/ -p prompt.txt --text-guidance-scale 4.0 --image-guidance-scale 1.2
 
 # Text-to-image only (no input image)
 edit-batch --model boogu -o out/ -p prompt.txt --width 1024 --height 1024
@@ -98,9 +102,11 @@ edit-batch --model boogu -o out/ -p prompt.txt --width 1024 --height 1024
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--boogu-path` | — | Path to local Boogu-Image-0.1-Edit model directory (uses HF hub by default) |
-| `--text-guidance-scale` | `5.0` | Text guidance scale (2.0-5.0 recommended) |
+| `--boogu-path` | — | Path to local full-precision Boogu-Image-0.1-Edit directory (skips GGUF auto-setup) |
+| `--text-guidance-scale` | `5.0` | Text guidance scale; auto-set to 1.0 for DMD turbo if defaults unchanged |
 | `--image-guidance-scale` | `1.0` | Image guidance scale |
+
+**Requirements:** `bitsandbytes` (installed automatically) for 4-bit MLLM quantization. ~12 GiB VRAM needed for 1024² generation.
 
 ### Skeleton ControlNet Mode
 
