@@ -285,19 +285,6 @@ def main():
             # every key in SINGLE_FILE_LOADABLE_CLASSES).
             import diffusers as _diffusers
             _diffusers.BooguImageTransformer2DModel = BooguImageTransformer2DModel
-            import types as _types
-            # Fake the HF remote-code modules so from_pretrained can verify types
-            # without needing to download and import the actual shim files.
-            _tf_mod = _types.ModuleType("transformer_boogu")
-            _tf_mod.BooguImageTransformer2DModel = BooguImageTransformer2DModel
-            sys.modules["transformer_boogu"] = _tf_mod
-            try:
-                from diffusers.scheduling_flow_match_euler_discrete_time_shifting import FlowMatchEulerDiscreteScheduler as _FMS
-            except ImportError:
-                from diffusers import FlowMatchEulerDiscreteScheduler as _FMS
-            _sched_mod = _types.ModuleType("scheduling_flow_match_euler_discrete_time_shifting")
-            _sched_mod.FlowMatchEulerDiscreteScheduler = _FMS
-            sys.modules["scheduling_flow_match_euler_discrete_time_shifting"] = _sched_mod
             from diffusers.loaders.single_file_model import SINGLE_FILE_LOADABLE_CLASSES
 
             # Custom converter for Boogu-Edit-Turbo GGUF.
@@ -380,15 +367,21 @@ def main():
             )
             from diffusers import AutoencoderKL, FlowMatchEulerDiscreteScheduler
             from transformers import Qwen3VLForConditionalGeneration, Qwen3VLProcessor
-            from diffusers.utils import is_xformers_available
 
             vae = AutoencoderKL.from_pretrained(BOOGU_EDIT_TURBO_MODEL, subfolder="vae", torch_dtype=torch.bfloat16)
             scheduler = FlowMatchEulerDiscreteScheduler.from_pretrained(BOOGU_EDIT_TURBO_MODEL, subfolder="scheduler")
-            mllm = Qwen3VLForConditionalGeneration.from_pretrained(BOOGU_EDIT_TURBO_MODEL, subfolder="mllm", torch_dtype=torch.bfloat16)
+            from transformers import BitsAndBytesConfig as _BNB
+            _bnb_cfg = _BNB(load_in_4bit=True, bnb_4bit_compute_dtype=torch.bfloat16)
+            mllm = Qwen3VLForConditionalGeneration.from_pretrained(
+                BOOGU_EDIT_TURBO_MODEL, subfolder="mllm",
+                torch_dtype=torch.bfloat16,
+                quantization_config=_bnb_cfg,
+                device_map="auto",
+            )
             processor = Qwen3VLProcessor.from_pretrained(BOOGU_EDIT_TURBO_MODEL, subfolder="processor")
 
             pipe = BooguImageTurboPipeline(
-                transformer=gguf_transformer,
+                transformer=gguf_transformer.to("cuda"),
                 vae=vae,
                 scheduler=scheduler,
                 mllm=mllm,
