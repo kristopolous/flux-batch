@@ -24,6 +24,9 @@ HIDREAM_PATCH = 32
 HIDREAM_REPO = "https://github.com/HiDream-ai/HiDream-O1-Image.git"
 
 BOOGU_EDIT_MODEL = "Boogu/Boogu-Image-0.1-Edit"
+BOOGU_EDIT_TURBO_MODEL = "Boogu/Boogu-Image-0.1-Edit-Turbo"
+BOOGU_REPO = "https://github.com/BOOGU-Project/Boogu-Image.git"
+BOOGU_GGUF_URL = "https://huggingface.co/realrebelai/Boogu-Image-Edit-Turbo_GGUFs/resolve/main/boogu-edit-turbo-dit-Q4_1.gguf"
 
 LORA_CACHE_DIR = Path.home() / ".cache" / "flux-batch" / "loras"
 LORA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -241,16 +244,73 @@ def main():
             hidream_timesteps = None
             hidream_scheduler = "default"
     elif args.model == "boogu":
-        from diffusers import DiffusionPipeline
-        boogu_path = args.boogu_path if args.boogu_path else BOOGU_EDIT_MODEL
-        print(f"Loading Boogu-Image-0.1-Edit from {boogu_path} ...", file=sys.stderr)
-        t0 = time.time()
-        pipe = DiffusionPipeline.from_pretrained(
-            boogu_path, torch_dtype=torch.bfloat16
-        )
-        pipe.enable_model_cpu_offload()
-        t1 = time.time()
-        print(f"Boogu-Edit model ready in {t1 - t0:.1f}s", file=sys.stderr)
+        from diffusers import DiffusionPipeline, GGUFQuantizationConfig
+        if args.boogu_path:
+            boogu_path = args.boogu_path
+            print(f"Loading Boogu-Image-0.1-Edit from {boogu_path} ...", file=sys.stderr)
+            t0 = time.time()
+            pipe = DiffusionPipeline.from_pretrained(
+                boogu_path, torch_dtype=torch.bfloat16
+            )
+            pipe.enable_model_cpu_offload()
+            t1 = time.time()
+            print(f"Boogu-Edit model ready in {t1 - t0:.1f}s", file=sys.stderr)
+        else:
+            # Auto-setup: clone Boogu repo, download GGUF, load with quantized transformer
+            boogu_src = LORA_CACHE_DIR.parent / "boogu" / "Boogu-Image"
+            if not (boogu_src / "boogu" / "models" / "transformers" / "transformer_boogu.py").exists():
+                print(f"Cloning Boogu-Image repo to {boogu_src} ...", file=sys.stderr)
+                boogu_src.parent.mkdir(parents=True, exist_ok=True)
+                import subprocess
+                subprocess.run(
+                    ["git", "clone", "--depth", "1", BOOGU_REPO, str(boogu_src)],
+                    check=True, capture_output=True, text=True
+                )
+            sys.path.insert(0, str(boogu_src))
+
+            # Cache the GGUF locally
+            gguf_filename = BOOGU_GGUF_URL.rsplit("/", 1)[-1]
+            gguf_cache = LORA_CACHE_DIR / gguf_filename
+            if not gguf_cache.exists():
+                print(f"Downloading Boogu GGUF from {BOOGU_GGUF_URL} ...", file=sys.stderr)
+                download_file(BOOGU_GGUF_URL, gguf_cache)
+            else:
+                print(f"Using cached GGUF at {gguf_cache}", file=sys.stderr)
+
+            from boogu.models.transformers.transformer_boogu import BooguImageTransformer2DModel
+            from boogu.pipelines.boogu.pipeline_boogu_turbo import BooguImageTurboPipeline
+
+            # Register BooguImageTransformer2DModel in diffusers so from_single_file
+            # can find it (it checks `issubclass(cls, getattr(diffusers, key))` for
+            # every key in SINGLE_FILE_LOADABLE_CLASSES).
+            import diffusers as _diffusers
+            _diffusers.BooguImageTransformer2DModel = BooguImageTransformer2DModel
+            from diffusers.loaders.single_file_model import SINGLE_FILE_LOADABLE_CLASSES
+            if "BooguImageTransformer2DModel" not in SINGLE_FILE_LOADABLE_CLASSES:
+                SINGLE_FILE_LOADABLE_CLASSES["BooguImageTransformer2DModel"] = \
+                    SINGLE_FILE_LOADABLE_CLASSES["Lumina2Transformer2DModel"]
+
+            print(f"Loading Boogu-Image-0.1-Edit-Turbo pipeline with GGUF ...", file=sys.stderr)
+            t0 = time.time()
+            gguf_transformer = BooguImageTransformer2DModel.from_single_file(
+                str(gguf_cache),
+                quantization_config=GGUFQuantizationConfig(compute_dtype=torch.bfloat16),
+                torch_dtype=torch.bfloat16,
+                config=BOOGU_EDIT_TURBO_MODEL,
+            )
+            pipe = BooguImageTurboPipeline.from_pretrained(
+                BOOGU_EDIT_TURBO_MODEL,
+                transformer=gguf_transformer,
+                torch_dtype=torch.bfloat16,
+                trust_remote_code=True,
+            )
+            pipe.enable_model_cpu_offload()
+            t1 = time.time()
+            print(f"Boogu-Edit-Turbo GGUF model ready in {t1 - t0:.1f}s", file=sys.stderr)
+            # DMD turbo inference uses no CFG — set guidance scales to 1.0
+            if args.text_guidance_scale == 5.0 and args.image_guidance_scale == 1.0:
+                print("DMD turbo: overriding text_guidance_scale to 1.0 (use --text-guidance-scale to override)", file=sys.stderr)
+                args.text_guidance_scale = 1.0
     elif args.skeleton:
         from transformers import AutoModel, AutoTokenizer
         print(f"Loading ControlNet pipeline with {args.controlnet} ...", file=sys.stderr)
@@ -352,8 +412,9 @@ def main():
     refs = []  # unused, kept for compatibility; ref_slots/ref_images used instead
     ref_file_content = ""
     ref_file_images = []
+    count = args.count
     for i, inpath in enumerate(input_files):
-        for c in range(args.count):
+        for c in range(count):
             t_start = time.time()
 
             if inpath:
@@ -440,7 +501,12 @@ def main():
                     h = int(h * scale)
 
             with open(args.prompt) as f:
-                prompt = f.readlines()[0].strip()
+                all = f.readlines()
+                if len(all) != count:
+                    print(f"Changing to {len(all)} pre run")
+                    count = len(all)
+
+                prompt = all[c % len(all)].strip()
 
             if oldprompt != prompt:
                 print(f"New Prompt: {prompt}")
