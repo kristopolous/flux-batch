@@ -28,6 +28,13 @@ BOOGU_EDIT_MODEL = "Boogu/Boogu-Image-0.1-Edit"
 LORA_CACHE_DIR = Path.home() / ".cache" / "flux-batch" / "loras"
 LORA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
+# Fix broken HuggingFace Hub cache symlink
+_hf_hub = Path.home() / ".cache" / "huggingface" / "hub"
+if _hf_hub.is_symlink() and not _hf_hub.exists():
+    _hf_hub.unlink()
+    _hf_hub.mkdir(parents=True, exist_ok=True)
+    print("Fixed broken HuggingFace Hub cache symlink", file=sys.stderr)
+
 def download_file(url, dest):
     import subprocess
     print(f"Downloading {url}...", file=sys.stderr)
@@ -112,7 +119,8 @@ def main():
     parser.add_argument("--text-guidance-scale", type=float, default=5.0, help="Text guidance scale for Boogu-Edit (default: 5.0)")
     parser.add_argument("-c", "--count", default=1, type=int, help="Number of images to make")
     parser.add_argument("-d", "--device", default="cuda", help="Torch device (default: cuda)")
-    parser.add_argument("-h", "--height", type=int, help="Explicit output height (enforced)")
+    ## -h is help
+    parser.add_argument("--height", type=int, help="Explicit output height (enforced)")
     parser.add_argument("-i", "--in", dest="input_glob", help="Glob pattern for input images (e.g. '*.jpg')")
     parser.add_argument("-m", "--model", default="flux", choices=["flux", "hidream", "boogu"], help="Model to use (default: flux)")
     parser.add_argument("-o", "--out", required=True, dest="output_dir", help="Directory to write output images")
