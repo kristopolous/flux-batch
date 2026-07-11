@@ -18,6 +18,21 @@ edit-batch -i "*.jpg" -o new/ -p prompt.txt
 - The prompt file can contain multiple lines. Each line generates a separate image per input, cycling through prompts sequentially. Lines starting with `#` are skipped as comments.
 - When multiple prompt lines are present, `--count` is automatically overridden to match the number of lines.
 
+**Inline reference images (`ref:<path>`):**
+
+Prompt lines can embed reference image paths directly using `ref:<path>` syntax. These are extracted, loaded as reference images, and removed from the prompt text before it reaches the model. This composes with `-r` and `-rf` — all sources contribute to the reference pool.
+
+```
+# prompt.txt
+Make the character wear the outfit ref:/tmp/hat.png ref:/tmp/jacket.png
+Put the ball on the table ref:/tmp/ball.png
+```
+
+```bash
+# No -r needed — refs are embedded in the prompt
+edit-batch -i "*.jpg" -o out/ -p prompt.txt
+```
+
 Here's an example. This is 960 frames. 
 
 Look at how frame-matched it is with the original. I even have a nice little peek-a-boo window to compare

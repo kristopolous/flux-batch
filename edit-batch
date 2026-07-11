@@ -5,6 +5,7 @@ import argparse
 import json
 import sys
 import os
+import re
 from pathlib import Path
 from glob import glob
 import time
@@ -56,6 +57,15 @@ def download_file(url, dest):
     result = subprocess.run(['curl', '-L', '-s', '-o', str(dest), url], capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"Failed to download {url}: {result.stderr}")
+
+def extract_refs(prompt):
+    """Extract ref:<path> tokens from a prompt string.
+
+    Returns (cleaned_prompt, [list of path strings]).
+    """
+    paths = re.findall(r'ref:(\S+)', prompt)
+    cleaned = re.sub(r'\s*ref:\S+', '', prompt).strip()
+    return cleaned, paths
 
 POSE_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 7),
@@ -604,6 +614,16 @@ def main():
                 if prompt[0] == '#':
                     continue
 
+            prompt, inline_ref_paths = extract_refs(prompt)
+            inline_ref_images = []
+            for rp in inline_ref_paths:
+                try:
+                    inline_ref_images.append(load_image(rp))
+                except Exception as e:
+                    print(f"Error loading inline ref {rp}: {e}, skipping", file=sys.stderr)
+            if inline_ref_images:
+                print(f"Inline refs: {', '.join(inline_ref_paths)}", file=sys.stderr)
+
             if oldprompt != prompt:
                 print(f"New Prompt: {prompt}")
 
@@ -645,6 +665,8 @@ def main():
                     refs_for_boogu.append(input_image)
                 if args.cumulative:
                     refs_for_boogu.extend(cum_outs)
+                if inline_ref_images:
+                    refs_for_boogu.extend(inline_ref_images)
                 if refs_for_boogu:
                     pipe_kwargs["input_images"] = [refs_for_boogu]
                 result = pipe(**pipe_kwargs)
@@ -705,7 +727,7 @@ def main():
                 }
 
                 if args.input_glob:
-                    if args.ref_file or len(cum_outs):
+                    if args.ref_file or len(cum_outs) or inline_ref_images:
                         if args.ref_file:
                             with open(args.ref_file) as f:
                               content = f.read()
@@ -719,11 +741,11 @@ def main():
                                       print(f"Error loading ref {r}: {e}, skipping", file=sys.stderr)
                               ref_file_content = content
                               print(f"New references: {', '.join(ref_paths)}")
-                        iter_refs = ref_file_images + cum_outs
+                        iter_refs = ref_file_images + cum_outs + inline_ref_images
                     else:
                         iter_refs = None
 
-                    if args.ref_file and iter_refs:
+                    if iter_refs:
                         ref = iter_refs[i % len(iter_refs)]
                         gen_kwargs['image'] = [input_image, ref]
                     elif ref_slots:
