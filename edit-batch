@@ -530,6 +530,7 @@ def main():
                   outpath = out_dir / f"{stem}.png"
 
                 if args.nc and os.path.exists(outpath):
+                  print(f"skip (exists): {outpath}", file=sys.stderr)
                   continue
 
                 try:
