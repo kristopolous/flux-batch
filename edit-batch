@@ -67,6 +67,18 @@ def extract_refs(prompt):
     cleaned = re.sub(r'\s*ref:\S+', '', prompt).strip()
     return cleaned, paths
 
+def extract_ratio(prompt):
+    """Extract ratio:<W>:<H> token from a prompt string.
+
+    Returns (cleaned_prompt, ratio_string or None).
+    """
+    match = re.search(r'ratio:(\d+:\d+)', prompt)
+    if match:
+        ratio = match.group(1)
+        cleaned = re.sub(r'\s*ratio:\S+', '', prompt).strip()
+        return cleaned, ratio
+    return prompt, None
+
 POSE_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 7),
     (0, 4), (4, 5), (5, 6), (6, 8),
@@ -522,6 +534,7 @@ def main():
         cum_outs.clear()
         for c in range(count):
             t_start = time.time()
+            print(f"[{c+1}/{count}] {inpath or 'no-input'}", file=sys.stderr)
 
             if inpath:
                 stem = Path(inpath).stem
@@ -609,11 +622,15 @@ def main():
             with open(args.prompt) as f:
                 all = f.readlines()
 
-                prompt = all[(args.offset + c) % len(all)].strip()
+                prompt = all[args.offset].strip()
                 if prompt[0] == '#':
                     continue
 
             prompt, inline_ref_paths = extract_refs(prompt)
+            prompt, inline_ratio = extract_ratio(prompt)
+            if inline_ratio:
+                args.ratio = inline_ratio
+                print(f"Inline ratio: {inline_ratio}", file=sys.stderr)
             inline_ref_images = []
             for rp in inline_ref_paths:
                 try:
