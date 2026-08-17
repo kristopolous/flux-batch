@@ -157,6 +157,7 @@ def main():
     parser.add_argument("-sd", "--seed", type=int, default=42, help="Random seed (default: 42)")
     parser.add_argument("-v", "--version", action="version", version=f"%(prog)s {ver}")
     parser.add_argument("-w", "--width", type=int, help="Explicit output width (enforced)")
+    parser.add_argument('--offset', type=int, default=0, help='Start reading prompt file from this line (default: 0)')
     parser.add_argument('-nc', action='store_true', help='No Clobber')
 
     args = parser.parse_args()
@@ -607,11 +608,8 @@ def main():
 
             with open(args.prompt) as f:
                 all = f.readlines()
-                if len(all) != count:
-                    print(f"Changing to {len(all)}")
-                    count = len(all)
 
-                prompt = all[c % len(all)].strip()
+                prompt = all[(args.offset + c) % len(all)].strip()
                 if prompt[0] == '#':
                     continue
 
