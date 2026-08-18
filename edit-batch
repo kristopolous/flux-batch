@@ -79,6 +79,18 @@ def extract_ratio(prompt):
         return cleaned, ratio
     return prompt, None
 
+def extract_steps(prompt):
+    """Extract steps:<int> token from a prompt string.
+
+    Returns (cleaned_prompt, steps_int or None).
+    """
+    match = re.search(r'steps:(\d+)', prompt)
+    if match:
+        steps = int(match.group(1))
+        cleaned = re.sub(r'\s*steps:\S+', '', prompt).strip()
+        return cleaned, steps
+    return prompt, None
+
 POSE_CONNECTIONS = [
     (0, 1), (1, 2), (2, 3), (3, 7),
     (0, 4), (4, 5), (5, 6), (6, 8),
@@ -628,9 +640,13 @@ def main():
 
             prompt, inline_ref_paths = extract_refs(prompt)
             prompt, inline_ratio = extract_ratio(prompt)
+            prompt, inline_steps = extract_steps(prompt)
             if inline_ratio:
                 args.ratio = inline_ratio
                 print(f"Inline ratio: {inline_ratio}", file=sys.stderr)
+            if inline_steps is not None:
+                args.steps = inline_steps
+                print(f"Inline steps: {inline_steps}", file=sys.stderr)
             inline_ref_images = []
             for rp in inline_ref_paths:
                 try:

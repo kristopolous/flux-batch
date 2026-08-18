@@ -33,6 +33,26 @@ Put the ball on the table ref:/tmp/ball.png
 edit-batch -i "*.jpg" -o out/ -p prompt.txt
 ```
 
+**Inline aspect ratio (`ratio:<W>:<H>`):**
+
+Prompt lines can embed an aspect ratio override using `ratio:<W>:<H>` syntax. This overrides `--ratio` from the command line for that prompt line.
+
+```
+# prompt.txt
+Wide cinematic shot ratio:16:9
+Square format ratio:1:1
+```
+
+**Inline steps (`steps:<int>`):**
+
+Prompt lines can embed a step count override using `steps:<int>` syntax. This overrides `--steps` from the command line for that prompt line.
+
+```
+# prompt.txt
+Quick draft steps:4
+High quality render steps:20
+```
+
 Here's an example. This is 960 frames. 
 
 Look at how frame-matched it is with the original. I even have a nice little peek-a-boo window to compare
@@ -180,6 +200,7 @@ edit-batch --skeleton --skeleton-strength 0.8 -in "*.jpg" -out out/ -p prompt.tx
 | `--max-width` | — | Maximum width constraint; overrides `--scale`, maintains aspect ratio |
 | `--max-height` | — | Maximum height constraint; overrides `--scale`, maintains aspect ratio |
 | `--ratio` | — | Target aspect ratio (e.g. `16:9`, `4:3`); applied after scale/max constraints, then reclamped to max bounds |
+| `--offset` | `0` | Start reading prompt file from this line (default: 0) |
 | `-rf` / `--ref-file` | — | File listing reference images (one per line); re-read each iteration like `--prompt`, reloads images only on content change |
 | `--shuf` | false | Shuffle input file order randomly |
 | `-nc` | false | No Clobber — skip existing outputs |
